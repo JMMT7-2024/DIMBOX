@@ -15,6 +15,7 @@ from rest_framework_simplejwt.views import (
 from rest_framework.routers import DefaultRouter
 from .views import RegisterView, ProfileView, TransactionViewSet
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from .views import RegisterView, ProfileView, TransactionViewSet, ExportCSVView
 
 # Creamos un router
 router = DefaultRouter()
@@ -30,6 +31,7 @@ urlpatterns = [
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('profile/', ProfileView.as_view(), name='profile'),
     # 👇 Añadimos las URLs generadas por el router a nuestra lista
+    path('export/csv/', ExportCSVView.as_view(), name='export_csv'),
     path('', include(router.urls)),
 ]
 

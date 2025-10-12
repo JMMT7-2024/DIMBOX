@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Mi registro personal</title>
+    <title>Mi registro personal v2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -27,18 +27,6 @@
             color: var(--ink);
         }
 
-        .btn-accent {
-            background: var(--accent);
-            color: var(--ink);
-            font-weight: 700;
-            transition: all .2s;
-            cursor: pointer;
-        }
-
-        .btn-accent:hover {
-            filter: brightness(.96);
-        }
-
         .card {
             background: var(--card);
             border: 1px solid var(--line);
@@ -46,17 +34,17 @@
             box-shadow: var(--shadow-medium);
         }
 
-        .tab {
-            background: #F5F7FA;
-            color: var(--muted);
+        .btn-accent {
+            background: var(--accent);
+            color: var(--ink);
             font-weight: 700;
             transition: all .2s;
             cursor: pointer;
+            border-radius: 12px;
         }
 
-        .tab.active {
-            background: var(--accent);
-            color: var(--ink);
+        .btn-accent:hover {
+            filter: brightness(.96);
         }
 
         .input {
@@ -74,34 +62,33 @@
             box-shadow: 0 0 0 4px rgba(var(--accent-rgb), .25);
         }
 
-        .toast {
-            position: fixed;
-            right: 16px;
-            bottom: 16px;
-            z-index: 50;
-            background: var(--ink);
-            color: #fff;
-            border-radius: 12px;
-            padding: 12px 16px;
-            box-shadow: var(--shadow-medium);
-            opacity: 0;
-            transform: translateY(10px);
-            transition: all .25s;
-        }
-
-        .toast.show {
-            opacity: 1;
-            transform: translateY(0)
-        }
-
-        .btn-logout {
-            color: #B91C1C;
-            font-weight: 600;
+        .tab {
+            background: #F5F7FA;
+            color: var(--muted);
+            font-weight: 700;
+            transition: all .2s;
             cursor: pointer;
         }
 
-        .btn-logout:hover {
-            text-decoration: underline;
+        .tab.active {
+            background: var(--accent);
+            color: var(--ink);
+        }
+
+        .progress-outer {
+            background: #EEF2F7;
+            border-radius: 999px;
+            height: 10px;
+            overflow: hidden;
+            box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .progress-inner {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent) 0%, #59e396 100%);
+            width: 0;
+            transition: width .6s;
+            border-radius: 999px;
         }
 
         .modal-backdrop {
@@ -115,6 +102,25 @@
 
         .modal-backdrop.show {
             display: grid;
+        }
+
+        .toast {
+            position: fixed;
+            right: 16px;
+            bottom: 16px;
+            z-index: 50;
+            background: var(--ink);
+            color: #fff;
+            border-radius: 12px;
+            padding: 12px 16px;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all .25s;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0)
         }
 
         .action-btn {
@@ -148,19 +154,48 @@
 
 <body>
     <main class="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
-        <section class="flex items-start justify-between gap-4">
+        <section class="flex items-center justify-between gap-4">
             <div>
-                <h1 class="text-2xl sm:text-3xl font-extrabold leading-tight"><span id="greet">Hola</span> 👋</h1>
-                <p class="muted">Bienvenido a tu registro personal.</p>
+                <h1 class="text-2xl sm:text-3xl font-extrabold" id="greet">Hola 👋</h1>
+                <p class="text-slate-500">Aquí está el resumen de tu actividad financiera.</p>
             </div>
-            <button id="logoutBtn" class="btn-logout">Cerrar Sesión</button>
+            <div class="flex items-center gap-4">
+                <button id="editProfileBtn" class="text-slate-600 font-semibold hover:text-slate-900">Editar
+                    Perfil</button>
+                <button id="logoutBtn" class="font-bold text-red-600 hover:underline">Salir</button>
+            </div>
         </section>
 
         <section class="card p-5 sm:p-6">
-            <h2 class="font-bold text-lg mb-4">Nuevo Registro</h2>
-            <div class="flex items-center gap-3 p-2 bg-slate-100 rounded-xl mb-4">
-                <button id="tabIngresos" class="tab active py-3 rounded-lg flex-1">Ingresos</button>
-                <button id="tabGastos" class="tab py-3 rounded-lg flex-1">Gastos</button>
+            <div class="flex items-center justify-between mb-4">
+                <div class="font-bold text-lg" id="goalTitle">Meta de Ahorro</div>
+                <button class="text-sm text-slate-500 hover:underline" id="setGoalBtn">Configurar</button>
+            </div>
+            <div class="flex items-center justify-between">
+                <div>
+                    <div class="text-slate-500 text-sm">Progreso este mes</div>
+                    <div class="text-3xl font-extrabold" id="goalProgressLabel">0%</div>
+                </div>
+                <div class="text-right">
+                    <div class="text-slate-500 text-sm">Ahorro estimado</div>
+                    <div class="font-bold text-lg" id="goalSaved">S/ 0.00</div>
+                    <div class="text-sm text-slate-500">de <span id="goalAmountLabel">S/ 0.00</span></div>
+                </div>
+            </div>
+            <div class="mt-4 progress-outer">
+                <div class="progress-inner" id="goalBar"></div>
+            </div>
+        </section>
+
+        <section class="card p-5 sm:p-6">
+            <h3 class="font-bold">💡 Consejo del día</h3>
+            <p class="mt-2 text-slate-600" id="tipText"></p>
+        </section>
+
+        <section class="card p-5 sm:p-6">
+            <div class="grid grid-cols-2 gap-2 p-2 bg-slate-100 rounded-xl mb-6">
+                <button id="tabIngresos" class="tab active py-3 rounded-lg">Ingresos</button>
+                <button id="tabGastos" class="tab py-3 rounded-lg">Gastos</button>
             </div>
             <form id="formIngresos" class="space-y-4">
                 <input type="hidden" name="transaction_type" value="IN">
@@ -199,9 +234,9 @@
             </form>
         </section>
 
-        <section class="card p-5 sm:p-6">
-            <h2 class="font-bold text-lg mb-2">Resumen del Mes</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="card p-5 sm:p-6 space-y-4">
+                <h3 class="font-bold">Resumen del Mes</h3>
                 <div class="p-4 bg-green-50 rounded-lg">
                     <div class="text-sm text-green-800">Total Ingresos</div>
                     <div id="sumIngresos" class="text-2xl font-bold text-green-900">S/ 0.00</div>
@@ -211,20 +246,44 @@
                     <div id="sumGastos" class="text-2xl font-bold text-red-900">S/ 0.00</div>
                 </div>
                 <div class="p-4 bg-blue-50 rounded-lg">
-                    <div class="text-sm text-blue-800">Balance</div>
+                    <div class="text-sm text-blue-800">Balance (Ahorro)</div>
                     <div id="sumBalance" class="text-2xl font-bold text-blue-900">S/ 0.00</div>
                 </div>
             </div>
-            <div class="mt-6"><canvas id="barMes" height="120"></canvas></div>
+            <div class="card p-5 sm:p-6">
+                <h3 class="font-bold mb-4">Gastos por Categoría</h3>
+                <div class="h-64"><canvas id="pieCat"></canvas></div>
+            </div>
         </section>
 
         <section class="card p-5 sm:p-6">
-            <h2 class="font-bold text-lg mb-2">Últimos Movimientos</h2>
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="font-bold text-lg">Últimos Movimientos</h2>
+                <button id="exportBtn" class="btn-accent px-4 py-2 text-sm">Exportar todo a CSV</button>
+            </div>
             <div id="historial" class="divide-y divide-slate-100"></div>
         </section>
     </main>
 
     <div id="toast" class="toast"></div>
+
+    <div id="profileModal" class="modal-backdrop">
+        <div class="card p-6 w-full max-w-lg">
+            <h3 class="text-xl font-bold mb-4">Tu Perfil y Meta</h3>
+            <form id="profileForm" class="space-y-4">
+                <div><label class="text-sm font-semibold">Tu nombre</label><input type="text" name="name"
+                        class="input mt-1" /></div>
+                <div><label class="text-sm font-semibold">Nombre de la meta de ahorro</label><input type="text"
+                        name="goal_name" class="input mt-1" /></div>
+                <div><label class="text-sm font-semibold">Monto meta (S/)</label><input type="number" step="0.01"
+                        min="0" name="goal_amount" class="input mt-1" /></div>
+                <div class="mt-6 flex justify-end gap-3">
+                    <button type="button" id="cancelProfileBtn" class="px-4 py-2 rounded-lg border">Cancelar</button>
+                    <button type="submit" class="btn-accent px-5 py-2">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <div id="editModal" class="modal-backdrop">
         <div class="card p-6 w-full max-w-lg">
@@ -261,9 +320,10 @@
 
     <script>
         const API_BASE_URL = 'http://127.0.0.1:8000/api';
-        const rState = { ingresos: [], gastos: [] };
-        let barChart = null;
+        const rState = { profile: {}, transactions: [] };
+        let pieChart = null;
         const toastEl = document.getElementById('toast');
+        const profileModal = document.getElementById('profileModal');
         const editModal = document.getElementById('editModal');
         const editForm = document.getElementById('editForm');
         const editCategoryWrapper = document.getElementById('editCategoryWrapper');
@@ -301,40 +361,77 @@
         }
 
         async function initApp() {
+            await Promise.all([loadUserProfile(), cargarTransacciones()]);
+            renderAll();
             setupEventListeners();
+            showRandomTip();
             setTodayDate();
-            await loadUserProfile();
-            await cargarResumenMes();
         }
 
         async function loadUserProfile() {
-            try {
-                const profile = await fetchAPI('/profile/');
-                const name = profile.name || profile.username;
-                document.getElementById('greet').textContent = `Hola, ${name}`;
-            } catch (error) {
-                if (error.message !== 'Unauthorized') showToast('⚠️ Error al cargar tu perfil.');
-            }
+            try { rState.profile = await fetchAPI('/profile/'); }
+            catch (error) { if (error.message !== 'Unauthorized') console.error('Error cargando perfil:', error); }
         }
 
-        async function cargarResumenMes() {
-            try {
-                const transactions = await fetchAPI('/transactions/');
-                rState.ingresos = transactions.filter(t => t.transaction_type === 'IN');
-                rState.gastos = transactions.filter(t => t.transaction_type === 'OUT');
-                renderDashboard();
-                renderHistory();
-            } catch (error) {
-                if (error.message !== 'Unauthorized') showToast('⚠️ No se pudieron cargar los datos.');
-            }
+        async function cargarTransacciones() {
+            try { rState.transactions = await fetchAPI('/transactions/'); }
+            catch (error) { if (error.message !== 'Unauthorized') console.error('Error cargando transacciones:', error); }
+        }
+
+        function renderAll() {
+            renderGreeting();
+            renderGoal();
+            renderDashboard();
+            renderHistory();
+        }
+
+        function renderGreeting() {
+            const name = rState.profile.name || rState.profile.username || 'Usuario';
+            document.getElementById('greet').textContent = `Hola, ${name}`;
+        }
+
+        function renderGoal() {
+            const balance = rState.transactions.filter(t => t.transaction_type === 'IN').reduce((sum, t) => sum + parseFloat(t.amount), 0) - rState.transactions.filter(t => t.transaction_type === 'OUT').reduce((sum, t) => sum + parseFloat(t.amount), 0);
+            const saved = Math.max(0, balance);
+            const goalAmount = parseFloat(rState.profile.goal_amount) || 0;
+            const progress = goalAmount > 0 ? Math.min(100, (saved / goalAmount) * 100) : 0;
+            document.getElementById('goalTitle').textContent = rState.profile.goal_name || 'Meta de Ahorro';
+            document.getElementById('goalProgressLabel').textContent = `${progress.toFixed(0)}%`;
+            document.getElementById('goalSaved').textContent = `S/ ${saved.toFixed(2)}`;
+            document.getElementById('goalAmountLabel').textContent = `S/ ${goalAmount.toFixed(2)}`;
+            document.getElementById('goalBar').style.width = `${progress}%`;
+        }
+
+        function renderDashboard() {
+            const ingresos = rState.transactions.filter(t => t.transaction_type === 'IN');
+            const gastos = rState.transactions.filter(t => t.transaction_type === 'OUT');
+            const sumIng = ingresos.reduce((sum, t) => sum + parseFloat(t.amount), 0);
+            const sumGas = gastos.reduce((sum, t) => sum + parseFloat(t.amount), 0);
+            document.getElementById('sumIngresos').textContent = `S/ ${sumIng.toFixed(2)}`;
+            document.getElementById('sumGastos').textContent = `S/ ${sumGas.toFixed(2)}`;
+            document.getElementById('sumBalance').textContent = `S/ ${(sumIng - sumGas).toFixed(2)}`;
+
+            const gastosPorCategoria = gastos.reduce((acc, gasto) => {
+                const cat = gasto.category || 'OT';
+                acc[cat] = (acc[cat] || 0) + parseFloat(gasto.amount);
+                return acc;
+            }, {});
+            const catLabels = Object.keys(gastosPorCategoria).map(key => ({ 'AL': 'Alim.', 'TR': 'Trans.', 'SE': 'Serv.', 'VI': 'Viv.', 'OC': 'Ocio', 'SA': 'Salud', 'ED': 'Educ.', 'OT': 'Otros' }[key]));
+            const catData = Object.values(gastosPorCategoria);
+
+            const pieCtx = document.getElementById('pieCat').getContext('2d');
+            if (pieChart) pieChart.destroy();
+            pieChart = new Chart(pieCtx, {
+                type: 'doughnut',
+                data: { labels: catLabels, datasets: [{ data: catData, borderWidth: 0 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } } }
+            });
         }
 
         function renderHistory() {
             const historialEl = document.getElementById('historial');
             historialEl.innerHTML = '';
-            const allTransactions = [...rState.ingresos, ...rState.gastos]
-                .sort((a, b) => new Date(b.date) - new Date(a.date))
-                .slice(0, 10);
+            const allTransactions = [...rState.transactions].sort((a, b) => new Date(b.date) - new Date(a.date));
             if (!allTransactions.length) {
                 historialEl.innerHTML = '<div class="text-slate-500 text-sm p-4 text-center">Sin registros.</div>';
                 return;
@@ -361,39 +458,57 @@
             });
         }
 
-        function renderDashboard() {
-            const sumIng = rState.ingresos.reduce((acc, curr) => acc + parseFloat(curr.amount), 0);
-            const sumGas = rState.gastos.reduce((acc, curr) => acc + parseFloat(curr.amount), 0);
-            const balance = sumIng - sumGas;
-            document.getElementById('sumIngresos').textContent = `S/ ${sumIng.toFixed(2)}`;
-            document.getElementById('sumGastos').textContent = `S/ ${sumGas.toFixed(2)}`;
-            document.getElementById('sumBalance').textContent = `S/ ${balance.toFixed(2)}`;
-            const barCtx = document.getElementById('barMes').getContext('2d');
-            if (barChart) barChart.destroy();
-            barChart = new Chart(barCtx, {
-                type: 'bar',
-                data: {
-                    labels: ['Ingresos', 'Gastos'],
-                    datasets: [{ data: [sumIng, sumGas], backgroundColor: ['rgba(16, 185, 129, 0.8)', 'rgba(239, 68, 68, 0.8)'], borderRadius: 8, maxBarThickness: 60 }]
-                },
-                options: { plugins: { legend: { display: false } } }
+        function setupEventListeners() {
+            document.getElementById('logoutBtn').addEventListener('click', logout);
+            document.getElementById('exportBtn').addEventListener('click', handleExportClick);
+
+            const formIngresos = document.getElementById('formIngresos');
+            const formGastos = document.getElementById('formGastos');
+            formIngresos.addEventListener('submit', handleFormSubmit);
+            formGastos.addEventListener('submit', handleFormSubmit);
+
+            const tabIngresos = document.getElementById('tabIngresos');
+            const tabGastos = document.getElementById('tabGastos');
+            tabIngresos.addEventListener('click', () => { formIngresos.classList.remove('hidden'); formGastos.classList.add('hidden'); tabIngresos.classList.add('active'); tabGastos.classList.remove('active'); });
+            tabGastos.addEventListener('click', () => { formGastos.classList.remove('hidden'); formIngresos.classList.add('hidden'); tabGastos.classList.add('active'); tabIngresos.classList.remove('active'); });
+
+            document.getElementById('historial').addEventListener('click', (e) => {
+                if (e.target.classList.contains('delete-btn')) { handleDeleteClick(e.target.dataset.id); }
+                if (e.target.classList.contains('edit-btn')) { openEditModal(e.target.dataset.id); }
             });
+
+            document.getElementById('editProfileBtn').addEventListener('click', openProfileModal);
+            document.getElementById('setGoalBtn').addEventListener('click', openProfileModal);
+            document.getElementById('cancelProfileBtn').addEventListener('click', () => profileModal.classList.remove('show'));
+            document.getElementById('profileForm').addEventListener('submit', handleProfileUpdate);
+
+            editForm.addEventListener('submit', handleUpdateSubmit);
+            document.getElementById('cancelEditBtn').addEventListener('click', () => editModal.classList.remove('show'));
         }
 
         async function handleFormSubmit(event) {
             event.preventDefault();
             const form = event.target;
-            const formData = new FormData(form);
-            const data = Object.fromEntries(formData.entries());
+            const data = Object.fromEntries(new FormData(form).entries());
             try {
                 await fetchAPI('/transactions/', 'POST', data);
                 showToast('✅ Registro guardado');
                 form.reset();
                 setTodayDate();
-                await cargarResumenMes();
-            } catch (error) {
-                showToast('⚠️ Error al guardar el registro.');
-            }
+                await cargarTransacciones();
+                renderAll();
+            } catch (error) { showToast('⚠️ Error al guardar el registro.'); }
+        }
+
+        async function handleProfileUpdate(e) {
+            e.preventDefault();
+            const data = Object.fromEntries(new FormData(e.target).entries());
+            try {
+                rState.profile = await fetchAPI('/profile/', 'PUT', data);
+                showToast('✅ Perfil actualizado');
+                profileModal.classList.remove('show');
+                renderAll();
+            } catch (error) { showToast('⚠️ Error al actualizar el perfil.'); }
         }
 
         async function handleDeleteClick(id) {
@@ -401,10 +516,9 @@
                 try {
                     await fetchAPI(`/transactions/${id}/`, 'DELETE');
                     showToast('✅ Registro eliminado');
-                    await cargarResumenMes();
-                } catch (error) {
-                    showToast('⚠️ Error al eliminar.');
-                }
+                    await cargarTransacciones();
+                    renderAll();
+                } catch (error) { showToast('⚠️ Error al eliminar.'); }
             }
         }
 
@@ -423,13 +537,15 @@
                     editCategoryWrapper.style.display = 'none';
                 }
                 editModal.classList.add('show');
-            } catch (error) {
-                showToast('⚠️ No se pudo cargar el registro para editar.');
-            }
+            } catch (error) { showToast('⚠️ No se pudo cargar el registro.'); }
         }
 
-        function closeEditModal() {
-            editModal.classList.remove('show');
+        function openProfileModal() {
+            const form = document.getElementById('profileForm');
+            form.elements.name.value = rState.profile.name || '';
+            form.elements.goal_name.value = rState.profile.goal_name || '';
+            form.elements.goal_amount.value = parseFloat(rState.profile.goal_amount) || '0.00';
+            profileModal.classList.add('show');
         }
 
         async function handleUpdateSubmit(event) {
@@ -448,29 +564,36 @@
             try {
                 await fetchAPI(`/transactions/${id}/`, 'PUT', data);
                 showToast('✅ Registro actualizado');
-                closeEditModal();
-                await cargarResumenMes();
-            } catch (error) {
-                showToast('⚠️ Error al actualizar.');
-            }
+                editModal.classList.remove('show');
+                await cargarTransacciones();
+                renderAll();
+            } catch (error) { showToast('⚠️ Error al actualizar.'); }
         }
 
-        function setupEventListeners() {
-            document.getElementById('formIngresos').addEventListener('submit', handleFormSubmit);
-            document.getElementById('formGastos').addEventListener('submit', handleFormSubmit);
-            document.getElementById('logoutBtn').addEventListener('click', logout);
-            document.getElementById('historial').addEventListener('click', (e) => {
-                if (e.target.classList.contains('delete-btn')) { handleDeleteClick(e.target.dataset.id); }
-                if (e.target.classList.contains('edit-btn')) { openEditModal(e.target.dataset.id); }
-            });
-            editForm.addEventListener('submit', handleUpdateSubmit);
-            document.getElementById('cancelEditBtn').addEventListener('click', closeEditModal);
-            const tabIngresos = document.getElementById('tabIngresos');
-            const tabGastos = document.getElementById('tabGastos');
-            const formIngresos = document.getElementById('formIngresos');
-            const formGastos = document.getElementById('formGastos');
-            tabIngresos.addEventListener('click', () => { formIngresos.classList.remove('hidden'); formGastos.classList.add('hidden'); tabIngresos.classList.add('active'); tabGastos.classList.remove('active'); });
-            tabGastos.addEventListener('click', () => { formGastos.classList.remove('hidden'); formIngresos.classList.add('hidden'); tabGastos.classList.add('active'); tabIngresos.classList.remove('active'); });
+        async function handleExportClick() {
+            showToast('Preparando tu reporte...');
+            try {
+                const token = localStorage.getItem('accessToken');
+                const response = await fetch(`${API_BASE_URL}/export/csv/`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!response.ok) { throw new Error('Error al generar el reporte.'); }
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = 'mis_movimientos.csv';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                a.remove();
+            } catch (error) {
+                console.error('Error en la exportación:', error);
+                showToast('⚠️ No se pudo exportar el archivo.');
+            }
         }
 
         function logout() {
@@ -489,6 +612,11 @@
             toastEl.textContent = msg;
             toastEl.classList.add('show');
             setTimeout(() => toastEl.classList.remove('show'), 2500);
+        }
+
+        function showRandomTip() {
+            const TIPS = ["Registra tus gastos tan pronto como ocurren.", "Crea un presupuesto mensual y apégate a él.", "Automatiza tus ahorros.", "Revisa tus suscripciones y cancela las que no uses.", "Evita las compras impulsivas esperando 24 horas."];
+            document.getElementById('tipText').textContent = TIPS[Math.floor(Math.random() * TIPS.length)];
         }
     </script>
 </body>
