@@ -9,26 +9,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # --- CONFIGURACIÓN DE SEGURIDAD PARA PRODUCCIÓN ---
 
-# Lee la SECRET_KEY desde las variables de entorno de Cloud Run (Secret Manager).
-# Si no la encuentra, usa una clave insegura solo para desarrollo local.
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-fallback-key-for-local-dev')
+# Lee la SECRET_KEY desde las variables de entorno de Cloud Run.
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'default-secret-key-for-local-dev')
 
-# DEBUG se establece a False a menos que la variable de entorno DEBUG sea 'True'
+# DEBUG se establece a False a menos que definamos una variable de entorno DEBUG=True
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-# --- CONFIGURACIÓN DE HOSTS PERMITIDOS (ALLOWED_HOSTS) ---
-
 # Lee los hosts permitidos desde una variable de entorno.
-# En producción, Google Cloud Run nos da una URL que debemos añadir aquí.
-ALLOWED_HOSTS = []
-RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
-if RENDER_EXTERNAL_HOSTNAME:
-    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
-
-# Añadimos la URL de Cloud Run si está disponible
-GCP_HOSTNAME = os.environ.get('GCP_HOSTNAME')
-if GCP_HOSTNAME:
-    ALLOWED_HOSTS.append(GCP_HOSTNAME)
+# El valor será la URL que nos da Cloud Run.
+ALLOWED_HOSTS_str = os.environ.get('DJANGO_ALLOWED_HOSTS', '')
+ALLOWED_HOSTS = ALLOWED_HOSTS_str.split(',') if ALLOWED_HOSTS_str else []
 
 # --- APLICACIONES ---
 INSTALLED_APPS = [
@@ -40,12 +30,13 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'corsheaders',
+    'whitenoise.middleware.WhiteNoise', # Corregido: Whitenoise no va en INSTALLED_APPS, sino en MIDDLEWARE
     'core',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware', # Aquí es donde debe estar WhiteNoise
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -56,43 +47,58 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'backend.urls'
-TEMPLATES = [ /* ... (Esta sección no cambia) ... */ ]
+
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
+
 WSGI_APPLICATION = 'backend.wsgi.application'
 
 # --- BASE DE DATOS ---
-# Lee la URL de la base de datos desde Secret Manager a través de una variable de entorno.
+# Lee la URL de la base de datos desde la variable de entorno de Cloud Run.
 DATABASES = {
-    'default': dj_database_url.config(
-        default=f'sqlite:///{BASE_DIR / "db.sqlite3"}',
-        conn_max_age=600
-    )
+    'default': dj_database_url.config(conn_max_age=600, ssl_require=False)
 }
 
-# --- VALIDACIÓN DE CONTRASEÑAS Y OTROS ---
-AUTH_PASSWORD_VALIDATORS = [ /* ... (Esta sección no cambia) ... */ ]
-LANGUAGE_CODE = 'es-es'
+# --- VALIDACIÓN DE CONTRASEÑAS ---
+AUTH_PASSWORD_VALIDATORS = [
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+]
+
+# --- INTERNACIONALIZACIÓN ---
+LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# --- ARCHIVOS ESTÁTICOS (CONFIGURACIÓN DE WHITENOISE) ---
+# --- ARCHIVOS ESTÁTICOS ---
 STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# --- CONFIGURACIÓN DE DJANGO REST FRAMEWORK Y CORS ---
+# --- CONFIGURACIÓN DE DJANGO REST FRAMEWORK ---
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': ('rest_framework_simplejwt.authentication.JWTAuthentication',)
 }
 
-# --- CONFIGURACIÓN DE CORS (LA MÁS IMPORTANTE) ---
+# --- CONFIGURACIÓN DE CORS ---
 CORS_ALLOWED_ORIGINS_str = os.environ.get('CORS_ALLOWED_ORIGINS', '')
 CORS_ALLOWED_ORIGINS = CORS_ALLOWED_ORIGINS_str.split(',') if CORS_ALLOWED_ORIGINS_str else []
-
-# Si no se definen orígenes específicos, por seguridad, no se permite ninguno.
-# Para desarrollo local, podrías añadir:
-# if DEBUG:
-#     CORS_ALLOWED_ORIGINS.extend(['http://127.0.0.1:5500', 'http://localhost:5500'])
 
 # --- MODELO DE USUARIO PERSONALIZADO ---
 AUTH_USER_MODEL = 'core.User'
