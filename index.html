@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mi registro personal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --accent: #90EE90;
+            --accent-rgb: 144, 238, 144;
+            --ink: #1A202C;
+            --muted: #6B7280;
+            --card: #FFFFFF;
+            --line: #E2E8F0;
+            --background: #F9FAFB;
+            --shadow-light: 2px 2px 8px rgba(0, 0, 0, 0.05);
+            --shadow-medium: 4px 4px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--background);
+            color: var(--ink);
+        }
+
+        .btn-accent {
+            background: var(--accent);
+            color: var(--ink);
+            font-weight: 700;
+            transition: all .2s;
+            cursor: pointer;
+        }
+
+        .btn-accent:hover {
+            filter: brightness(.96);
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            box-shadow: var(--shadow-medium);
+        }
+
+        .tab {
+            background: #F5F7FA;
+            color: var(--muted);
+            font-weight: 700;
+            transition: all .2s;
+            cursor: pointer;
+        }
+
+        .tab.active {
+            background: var(--accent);
+            color: var(--ink);
+        }
+
+        .input {
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 10px 12px;
+            width: 100%;
+            outline: none;
+            transition: box-shadow .2s, border-color .2s;
+        }
+
+        .input:focus {
+            border-color: rgba(var(--accent-rgb), .9);
+            box-shadow: 0 0 0 4px rgba(var(--accent-rgb), .25);
+        }
+
+        .toast {
+            position: fixed;
+            right: 16px;
+            bottom: 16px;
+            z-index: 50;
+            background: var(--ink);
+            color: #fff;
+            border-radius: 12px;
+            padding: 12px 16px;
+            box-shadow: var(--shadow-medium);
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all .25s;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0)
+        }
+
+        .btn-logout {
+            color: #B91C1C;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-logout:hover {
+            text-decoration: underline;
+        }
+
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(30, 41, 59, .4);
+            display: none;
+            place-items: center;
+            z-index: 40;
+        }
+
+        .modal-backdrop.show {
+            display: grid;
+        }
+
+        .action-btn {
+            font-size: 12px;
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 6px;
+            transition: background-color .2s;
+            cursor: pointer;
+        }
+
+        .edit-btn {
+            border: 1px solid #3b82f6;
+            color: #3b82f6;
+        }
+
+        .edit-btn:hover {
+            background-color: rgba(59, 130, 246, 0.1);
+        }
+
+        .delete-btn {
+            border: 1px solid #ef4444;
+            color: #ef4444;
+        }
+
+        .delete-btn:hover {
+            background-color: rgba(239, 68, 68, 0.1);
+        }
+    </style>
+</head>
+
+<body>
+    <main class="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
+        <section class="flex items-start justify-between gap-4">
+            <div>
+                <h1 class="text-2xl sm:text-3xl font-extrabold leading-tight"><span id="greet">Hola</span> 👋</h1>
+                <p class="muted">Bienvenido a tu registro personal.</p>
+            </div>
+            <button id="logoutBtn" class="btn-logout">Cerrar Sesión</button>
+        </section>
+
+        <section class="card p-5 sm:p-6">
+            <h2 class="font-bold text-lg mb-4">Nuevo Registro</h2>
+            <div class="flex items-center gap-3 p-2 bg-slate-100 rounded-xl mb-4">
+                <button id="tabIngresos" class="tab active py-3 rounded-lg flex-1">Ingresos</button>
+                <button id="tabGastos" class="tab py-3 rounded-lg flex-1">Gastos</button>
+            </div>
+            <form id="formIngresos" class="space-y-4">
+                <input type="hidden" name="transaction_type" value="IN">
+                <div><label class="muted text-sm">Fecha</label><input type="date" class="input" name="date" required />
+                </div>
+                <div><label class="muted text-sm">Monto</label><input type="number" step="0.01" min="0" class="input"
+                        name="amount" placeholder="Ej: 1200.00" required /></div>
+                <div><label class="muted text-sm">Descripción</label><input type="text" class="input" name="description"
+                        placeholder="Ej: Sueldo del mes" /></div>
+                <div class="text-right"><button type="submit" class="btn-accent rounded-xl px-5 py-3">Registrar
+                        Ingreso</button></div>
+            </form>
+            <form id="formGastos" class="hidden space-y-4">
+                <input type="hidden" name="transaction_type" value="OUT">
+                <div><label class="muted text-sm">Fecha</label><input type="date" class="input" name="date" required />
+                </div>
+                <div><label class="muted text-sm">Monto</label><input type="number" step="0.01" min="0" class="input"
+                        name="amount" placeholder="Ej: 45.50" required /></div>
+                <div>
+                    <label class="muted text-sm">Categoría</label>
+                    <select name="category" class="input" required>
+                        <option value="AL">Alimentación</option>
+                        <option value="TR">Transporte</option>
+                        <option value="SE">Servicios</option>
+                        <option value="VI">Vivienda</option>
+                        <option value="OC">Ocio</option>
+                        <option value="SA">Salud</option>
+                        <option value="ED">Educación</option>
+                        <option value="OT">Otros</option>
+                    </select>
+                </div>
+                <div><label class="muted text-sm">Descripción</label><input type="text" class="input" name="description"
+                        placeholder="Ej: Café con amigos" /></div>
+                <div class="text-right"><button type="submit" class="btn-accent rounded-xl px-5 py-3">Registrar
+                        Gasto</button></div>
+            </form>
+        </section>
+
+        <section class="card p-5 sm:p-6">
+            <h2 class="font-bold text-lg mb-2">Resumen del Mes</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="p-4 bg-green-50 rounded-lg">
+                    <div class="text-sm text-green-800">Total Ingresos</div>
+                    <div id="sumIngresos" class="text-2xl font-bold text-green-900">S/ 0.00</div>
+                </div>
+                <div class="p-4 bg-red-50 rounded-lg">
+                    <div class="text-sm text-red-800">Total Gastos</div>
+                    <div id="sumGastos" class="text-2xl font-bold text-red-900">S/ 0.00</div>
+                </div>
+                <div class="p-4 bg-blue-50 rounded-lg">
+                    <div class="text-sm text-blue-800">Balance</div>
+                    <div id="sumBalance" class="text-2xl font-bold text-blue-900">S/ 0.00</div>
+                </div>
+            </div>
+            <div class="mt-6"><canvas id="barMes" height="120"></canvas></div>
+        </section>
+
+        <section class="card p-5 sm:p-6">
+            <h2 class="font-bold text-lg mb-2">Últimos Movimientos</h2>
+            <div id="historial" class="divide-y divide-slate-100"></div>
+        </section>
+    </main>
+
+    <div id="toast" class="toast"></div>
+
+    <div id="editModal" class="modal-backdrop">
+        <div class="card p-6 w-full max-w-lg">
+            <h3 class="text-xl font-bold mb-4">Editar Transacción</h3>
+            <form id="editForm" class="space-y-4">
+                <input type="hidden" name="transaction_id">
+                <input type="hidden" name="transaction_type">
+                <div><label class="muted text-sm">Fecha</label><input type="date" class="input" name="date" required />
+                </div>
+                <div><label class="muted text-sm">Monto</label><input type="number" step="0.01" min="0" class="input"
+                        name="amount" required /></div>
+                <div id="editCategoryWrapper">
+                    <label class="muted text-sm">Categoría</label>
+                    <select name="category" class="input">
+                        <option value="AL">Alimentación</option>
+                        <option value="TR">Transporte</option>
+                        <option value="SE">Servicios</option>
+                        <option value="VI">Vivienda</option>
+                        <option value="OC">Ocio</option>
+                        <option value="SA">Salud</option>
+                        <option value="ED">Educación</option>
+                        <option value="OT">Otros</option>
+                    </select>
+                </div>
+                <div><label class="muted text-sm">Descripción</label><input type="text" class="input"
+                        name="description" /></div>
+                <div class="mt-6 flex justify-end gap-3">
+                    <button type="button" id="cancelEditBtn" class="px-4 py-2 rounded-lg border">Cancelar</button>
+                    <button type="submit" class="btn-accent rounded-lg px-5 py-2">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://127.0.0.1:8000/api';
+        const rState = { ingresos: [], gastos: [] };
+        let barChart = null;
+        const toastEl = document.getElementById('toast');
+        const editModal = document.getElementById('editModal');
+        const editForm = document.getElementById('editForm');
+        const editCategoryWrapper = document.getElementById('editCategoryWrapper');
+
+        window.onload = () => {
+            const token = localStorage.getItem('accessToken');
+            if (!token) {
+                window.location.href = './login.html';
+            } else {
+                initApp();
+            }
+        };
+
+        async function fetchAPI(endpoint, method = 'GET', body = null) {
+            const token = localStorage.getItem('accessToken');
+            const headers = { 'Authorization': `Bearer ${token}` };
+            if (body) {
+                headers['Content-Type'] = 'application/json';
+            }
+            const config = { method, headers };
+            if (body) {
+                config.body = JSON.stringify(body);
+            }
+            const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+            if (response.status === 401) {
+                logout();
+                throw new Error('Unauthorized');
+            }
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(JSON.stringify(errorData));
+            }
+            if (response.status === 204) { return null; }
+            return response.json();
+        }
+
+        async function initApp() {
+            setupEventListeners();
+            setTodayDate();
+            await loadUserProfile();
+            await cargarResumenMes();
+        }
+
+        async function loadUserProfile() {
+            try {
+                const profile = await fetchAPI('/profile/');
+                const name = profile.name || profile.username;
+                document.getElementById('greet').textContent = `Hola, ${name}`;
+            } catch (error) {
+                if (error.message !== 'Unauthorized') showToast('⚠️ Error al cargar tu perfil.');
+            }
+        }
+
+        async function cargarResumenMes() {
+            try {
+                const transactions = await fetchAPI('/transactions/');
+                rState.ingresos = transactions.filter(t => t.transaction_type === 'IN');
+                rState.gastos = transactions.filter(t => t.transaction_type === 'OUT');
+                renderDashboard();
+                renderHistory();
+            } catch (error) {
+                if (error.message !== 'Unauthorized') showToast('⚠️ No se pudieron cargar los datos.');
+            }
+        }
+
+        function renderHistory() {
+            const historialEl = document.getElementById('historial');
+            historialEl.innerHTML = '';
+            const allTransactions = [...rState.ingresos, ...rState.gastos]
+                .sort((a, b) => new Date(b.date) - new Date(a.date))
+                .slice(0, 10);
+            if (!allTransactions.length) {
+                historialEl.innerHTML = '<div class="text-slate-500 text-sm p-4 text-center">Sin registros.</div>';
+                return;
+            }
+            allTransactions.forEach(item => {
+                const isIncome = item.transaction_type === 'IN';
+                const amountClass = isIncome ? 'text-green-600' : 'text-red-600';
+                const sign = isIncome ? '+' : '-';
+                const row = document.createElement('div');
+                row.className = 'flex justify-between items-center py-3';
+                row.innerHTML = `
+                <div>
+                    <div class="font-semibold">${item.description || (isIncome ? 'Ingreso' : 'Gasto')}</div>
+                    <div class="text-xs text-slate-500">${item.date}</div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="font-bold ${amountClass}">${sign} S/ ${parseFloat(item.amount).toFixed(2)}</div>
+                    <div class="flex gap-2">
+                        <button class="action-btn edit-btn" data-id="${item.id}">Editar</button>
+                        <button class="action-btn delete-btn" data-id="${item.id}">Borrar</button>
+                    </div>
+                </div>`;
+                historialEl.appendChild(row);
+            });
+        }
+
+        function renderDashboard() {
+            const sumIng = rState.ingresos.reduce((acc, curr) => acc + parseFloat(curr.amount), 0);
+            const sumGas = rState.gastos.reduce((acc, curr) => acc + parseFloat(curr.amount), 0);
+            const balance = sumIng - sumGas;
+            document.getElementById('sumIngresos').textContent = `S/ ${sumIng.toFixed(2)}`;
+            document.getElementById('sumGastos').textContent = `S/ ${sumGas.toFixed(2)}`;
+            document.getElementById('sumBalance').textContent = `S/ ${balance.toFixed(2)}`;
+            const barCtx = document.getElementById('barMes').getContext('2d');
+            if (barChart) barChart.destroy();
+            barChart = new Chart(barCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Ingresos', 'Gastos'],
+                    datasets: [{ data: [sumIng, sumGas], backgroundColor: ['rgba(16, 185, 129, 0.8)', 'rgba(239, 68, 68, 0.8)'], borderRadius: 8, maxBarThickness: 60 }]
+                },
+                options: { plugins: { legend: { display: false } } }
+            });
+        }
+
+        async function handleFormSubmit(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+            try {
+                await fetchAPI('/transactions/', 'POST', data);
+                showToast('✅ Registro guardado');
+                form.reset();
+                setTodayDate();
+                await cargarResumenMes();
+            } catch (error) {
+                showToast('⚠️ Error al guardar el registro.');
+            }
+        }
+
+        async function handleDeleteClick(id) {
+            if (confirm('¿Estás seguro de que quieres eliminar este registro?')) {
+                try {
+                    await fetchAPI(`/transactions/${id}/`, 'DELETE');
+                    showToast('✅ Registro eliminado');
+                    await cargarResumenMes();
+                } catch (error) {
+                    showToast('⚠️ Error al eliminar.');
+                }
+            }
+        }
+
+        async function openEditModal(id) {
+            try {
+                const tx = await fetchAPI(`/transactions/${id}/`);
+                editForm.elements.transaction_id.value = tx.id;
+                editForm.elements.transaction_type.value = tx.transaction_type;
+                editForm.elements.date.value = tx.date;
+                editForm.elements.amount.value = parseFloat(tx.amount);
+                editForm.elements.description.value = tx.description || '';
+                if (tx.transaction_type === 'OUT') {
+                    editCategoryWrapper.style.display = 'block';
+                    editForm.elements.category.value = tx.category;
+                } else {
+                    editCategoryWrapper.style.display = 'none';
+                }
+                editModal.classList.add('show');
+            } catch (error) {
+                showToast('⚠️ No se pudo cargar el registro para editar.');
+            }
+        }
+
+        function closeEditModal() {
+            editModal.classList.remove('show');
+        }
+
+        async function handleUpdateSubmit(event) {
+            event.preventDefault();
+            const form = event.target;
+            const id = form.elements.transaction_id.value;
+            const data = {
+                date: form.elements.date.value,
+                amount: form.elements.amount.value,
+                description: form.elements.description.value,
+                transaction_type: form.elements.transaction_type.value,
+            };
+            if (data.transaction_type === 'OUT') {
+                data.category = form.elements.category.value;
+            }
+            try {
+                await fetchAPI(`/transactions/${id}/`, 'PUT', data);
+                showToast('✅ Registro actualizado');
+                closeEditModal();
+                await cargarResumenMes();
+            } catch (error) {
+                showToast('⚠️ Error al actualizar.');
+            }
+        }
+
+        function setupEventListeners() {
+            document.getElementById('formIngresos').addEventListener('submit', handleFormSubmit);
+            document.getElementById('formGastos').addEventListener('submit', handleFormSubmit);
+            document.getElementById('logoutBtn').addEventListener('click', logout);
+            document.getElementById('historial').addEventListener('click', (e) => {
+                if (e.target.classList.contains('delete-btn')) { handleDeleteClick(e.target.dataset.id); }
+                if (e.target.classList.contains('edit-btn')) { openEditModal(e.target.dataset.id); }
+            });
+            editForm.addEventListener('submit', handleUpdateSubmit);
+            document.getElementById('cancelEditBtn').addEventListener('click', closeEditModal);
+            const tabIngresos = document.getElementById('tabIngresos');
+            const tabGastos = document.getElementById('tabGastos');
+            const formIngresos = document.getElementById('formIngresos');
+            const formGastos = document.getElementById('formGastos');
+            tabIngresos.addEventListener('click', () => { formIngresos.classList.remove('hidden'); formGastos.classList.add('hidden'); tabIngresos.classList.add('active'); tabGastos.classList.remove('active'); });
+            tabGastos.addEventListener('click', () => { formGastos.classList.remove('hidden'); formIngresos.classList.add('hidden'); tabGastos.classList.add('active'); tabIngresos.classList.remove('active'); });
+        }
+
+        function logout() {
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
+            window.location.href = './login.html';
+        }
+
+        function setTodayDate() {
+            const today = new Date().toISOString().split('T')[0];
+            document.querySelector('#formIngresos [name="date"]').value = today;
+            document.querySelector('#formGastos [name="date"]').value = today;
+        }
+
+        function showToast(msg) {
+            toastEl.textContent = msg;
+            toastEl.classList.add('show');
+            setTimeout(() => toastEl.classList.remove('show'), 2500);
+        }
+    </script>
+</body>
+
+</html>
