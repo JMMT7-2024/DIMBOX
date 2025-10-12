@@ -24,4 +24,5 @@ COPY . /app/
 EXPOSE 8000
 
 # Comando para iniciar el servidor de producción
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "backend.wsgi"]
+# LÍNEA CORRECTA
+CMD ["gunicorn", "--bind", "0.0.0.0:$PORT", "--workers", "2", "backend.wsgi"]
