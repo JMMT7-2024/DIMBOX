@@ -1,42 +1,15 @@
-# core/urls.py
-
-from django.urls import path,include
-from .views import RegisterView
-# 👇 Importamos las vistas que nos da la librería JWT
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
-)
-from .views import RegisterView, ProfileView
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
-)
-from rest_framework.routers import DefaultRouter
-from .views import RegisterView, ProfileView, TransactionViewSet
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from .views import RegisterView, ProfileView, TransactionViewSet, ExportCSVView
-
-# Creamos un router
-router = DefaultRouter()
-# Registramos nuestro ViewSet. Django creará las URLs automáticamente.
-# El prefijo será 'transactions' (ej: /api/transactions/)
-router.register('transactions', TransactionViewSet, basename='transaction')
+from django.urls import path
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenVerifyView
+from .views import RegisterView, MeView, TransactionListCreateView, TransactionDetailView
 
 urlpatterns = [
-    path('register/', RegisterView.as_view(), name='register'),
-    # 👇 Esta URL recibirá el username y password, y devolverá los tokens
-    path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    # 👇 Esta URL recibirá un "refresh token" para generar un nuevo "access token"
-    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('profile/', ProfileView.as_view(), name='profile'),
-    # 👇 Añadimos las URLs generadas por el router a nuestra lista
-    path('export/csv/', ExportCSVView.as_view(), name='export_csv'),
-    path('', include(router.urls)),
-]
+    path('register/', RegisterView.as_view(), name='register'),           # <-- aquí
+    path('me/', MeView.as_view(), name='me'),
 
-# Creamos un router
-router = DefaultRouter()
-# Registramos nuestro ViewSet. Django creará las URLs automáticamente.
-# El prefijo será 'transactions' (ej: /api/transactions/)
-router.register('transactions', TransactionViewSet, basename='transaction')
+    path('transactions/', TransactionListCreateView.as_view(), name='tx-list'),
+    path('transactions/<int:pk>/', TransactionDetailView.as_view(), name='tx-detail'),
+
+    path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('token/verify/', TokenVerifyView.as_view(), name='token_verify'),
+]
