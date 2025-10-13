@@ -17,8 +17,8 @@
             --card: #FFFFFF;
             --line: #E2E8F0;
             --background: #F9FAFB;
-            --shadow-light: 2px 2px 8px rgba(0, 0, 0, 0.05);
-            --shadow-medium: 4px 4px 15px rgba(0, 0, 0, 0.08);
+            --shadow-light: 2px 2px 8px rgba(0, 0, 0, .05);
+            --shadow-medium: 4px 4px 15px rgba(0, 0, 0, .08);
         }
 
         body {
@@ -80,7 +80,7 @@
             border-radius: 999px;
             height: 10px;
             overflow: hidden;
-            box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.1);
+            box-shadow: inset 1px 1px 3px rgba(0, 0, 0, .1);
         }
 
         .progress-inner {
@@ -138,7 +138,7 @@
         }
 
         .edit-btn:hover {
-            background-color: rgba(59, 130, 246, 0.1);
+            background-color: rgba(59, 130, 246, .1);
         }
 
         .delete-btn {
@@ -147,7 +147,7 @@
         }
 
         .delete-btn:hover {
-            background-color: rgba(239, 68, 68, 0.1);
+            background-color: rgba(239, 68, 68, .1);
         }
     </style>
 </head>
@@ -197,23 +197,38 @@
                 <button id="tabIngresos" class="tab active py-3 rounded-lg">Ingresos</button>
                 <button id="tabGastos" class="tab py-3 rounded-lg">Gastos</button>
             </div>
+
             <form id="formIngresos" class="space-y-4">
                 <input type="hidden" name="transaction_type" value="IN">
-                <div><label class="muted text-sm">Fecha</label><input type="date" class="input" name="date" required />
+                <div>
+                    <label class="muted text-sm">Fecha</label>
+                    <input type="date" class="input" name="date" required />
                 </div>
-                <div><label class="muted text-sm">Monto</label><input type="number" step="0.01" min="0" class="input"
-                        name="amount" placeholder="Ej: 1200.00" required /></div>
-                <div><label class="muted text-sm">Descripción</label><input type="text" class="input" name="description"
-                        placeholder="Ej: Sueldo del mes" /></div>
-                <div class="text-right"><button type="submit" class="btn-accent rounded-xl px-5 py-3">Registrar
-                        Ingreso</button></div>
+                <div>
+                    <label class="muted text-sm">Monto</label>
+                    <input type="number" step="0.01" min="0" class="input" name="amount" placeholder="Ej: 1200.00"
+                        required />
+                </div>
+                <div>
+                    <label class="muted text-sm">Descripción</label>
+                    <input type="text" class="input" name="description" placeholder="Ej: Sueldo del mes" />
+                </div>
+                <div class="text-right">
+                    <button type="submit" class="btn-accent rounded-xl px-5 py-3">Registrar Ingreso</button>
+                </div>
             </form>
+
             <form id="formGastos" class="hidden space-y-4">
                 <input type="hidden" name="transaction_type" value="OUT">
-                <div><label class="muted text-sm">Fecha</label><input type="date" class="input" name="date" required />
+                <div>
+                    <label class="muted text-sm">Fecha</label>
+                    <input type="date" class="input" name="date" required />
                 </div>
-                <div><label class="muted text-sm">Monto</label><input type="number" step="0.01" min="0" class="input"
-                        name="amount" placeholder="Ej: 45.50" required /></div>
+                <div>
+                    <label class="muted text-sm">Monto</label>
+                    <input type="number" step="0.01" min="0" class="input" name="amount" placeholder="Ej: 45.50"
+                        required />
+                </div>
                 <div>
                     <label class="muted text-sm">Categoría</label>
                     <select name="category" class="input" required>
@@ -227,10 +242,13 @@
                         <option value="OT">Otros</option>
                     </select>
                 </div>
-                <div><label class="muted text-sm">Descripción</label><input type="text" class="input" name="description"
-                        placeholder="Ej: Café con amigos" /></div>
-                <div class="text-right"><button type="submit" class="btn-accent rounded-xl px-5 py-3">Registrar
-                        Gasto</button></div>
+                <div>
+                    <label class="muted text-sm">Descripción</label>
+                    <input type="text" class="input" name="description" placeholder="Ej: Café con amigos" />
+                </div>
+                <div class="text-right">
+                    <button type="submit" class="btn-accent rounded-xl px-5 py-3">Registrar Gasto</button>
+                </div>
             </form>
         </section>
 
@@ -271,12 +289,18 @@
         <div class="card p-6 w-full max-w-lg">
             <h3 class="text-xl font-bold mb-4">Tu Perfil y Meta</h3>
             <form id="profileForm" class="space-y-4">
-                <div><label class="text-sm font-semibold">Tu nombre</label><input type="text" name="name"
-                        class="input mt-1" /></div>
-                <div><label class="text-sm font-semibold">Nombre de la meta de ahorro</label><input type="text"
-                        name="goal_name" class="input mt-1" /></div>
-                <div><label class="text-sm font-semibold">Monto meta (S/)</label><input type="number" step="0.01"
-                        min="0" name="goal_amount" class="input mt-1" /></div>
+                <div>
+                    <label class="text-sm font-semibold">Tu nombre</label>
+                    <input type="text" name="name" class="input mt-1" />
+                </div>
+                <div>
+                    <label class="text-sm font-semibold">Nombre de la meta de ahorro</label>
+                    <input type="text" name="goal_name" class="input mt-1" />
+                </div>
+                <div>
+                    <label class="text-sm font-semibold">Monto meta (S/)</label>
+                    <input type="number" step="0.01" min="0" name="goal_amount" class="input mt-1" />
+                </div>
                 <div class="mt-6 flex justify-end gap-3">
                     <button type="button" id="cancelProfileBtn" class="px-4 py-2 rounded-lg border">Cancelar</button>
                     <button type="submit" class="btn-accent px-5 py-2">Guardar</button>
@@ -291,10 +315,14 @@
             <form id="editForm" class="space-y-4">
                 <input type="hidden" name="transaction_id">
                 <input type="hidden" name="transaction_type">
-                <div><label class="muted text-sm">Fecha</label><input type="date" class="input" name="date" required />
+                <div>
+                    <label class="muted text-sm">Fecha</label>
+                    <input type="date" class="input" name="date" required />
                 </div>
-                <div><label class="muted text-sm">Monto</label><input type="number" step="0.01" min="0" class="input"
-                        name="amount" required /></div>
+                <div>
+                    <label class="muted text-sm">Monto</label>
+                    <input type="number" step="0.01" min="0" class="input" name="amount" required />
+                </div>
                 <div id="editCategoryWrapper">
                     <label class="muted text-sm">Categoría</label>
                     <select name="category" class="input">
@@ -308,8 +336,10 @@
                         <option value="OT">Otros</option>
                     </select>
                 </div>
-                <div><label class="muted text-sm">Descripción</label><input type="text" class="input"
-                        name="description" /></div>
+                <div>
+                    <label class="muted text-sm">Descripción</label>
+                    <input type="text" class="input" name="description" />
+                </div>
                 <div class="mt-6 flex justify-end gap-3">
                     <button type="button" id="cancelEditBtn" class="px-4 py-2 rounded-lg border">Cancelar</button>
                     <button type="submit" class="btn-accent rounded-lg px-5 py-2">Guardar Cambios</button>
@@ -320,44 +350,105 @@
 
     <script>
         const API_BASE_URL = 'https://dimbox-backend-161965548961.us-central1.run.app/api';
-        const rState = { profile: {}, transactions: [] };
-        let pieChart = null;
-        const toastEl = document.getElementById('toast');
-        const profileModal = document.getElementById('profileModal');
-        const editModal = document.getElementById('editModal');
-        const editForm = document.getElementById('editForm');
-        const editCategoryWrapper = document.getElementById('editCategoryWrapper');
 
-        window.onload = () => {
-            const token = localStorage.getItem('accessToken');
-            if (!token) {
-                window.location.href = './login.html';
-            } else {
-                initApp();
+        async function postJSON(url, payload) {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const ct = res.headers.get('content-type') || '';
+            if (!res.ok) {
+                // lee texto si el backend devolvió HTML (404)
+                const err = ct.includes('application/json') ? await res.json() : await res.text();
+                throw new Error(typeof err === 'string' ? err : JSON.stringify(err));
             }
-        };
+            return ct.includes('application/json') ? res.json() : res.text();
+        }
 
+        // Registro
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = Object.fromEntries(new FormData(e.target).entries());
+
+            // Asegúrate de que los names de los inputs sean: name, username, email, password
+            // <input name="name">, <input name="username">, <input name="email">, <input name="password">
+
+            try {
+                await postJSON(`${API_BASE_URL}/register/`, {
+                    name: data.name,
+                    username: data.username,
+                    email: data.email,
+                    password: data.password
+                });
+                // luego pide el token y guarda access/refresh
+                const tokens = await postJSON(`${API_BASE_URL}/token/`, {
+                    username: data.username, password: data.password
+                });
+                localStorage.setItem('accessToken', tokens.access);
+                localStorage.setItem('refreshToken', tokens.refresh);
+                window.location.href = './index.html';
+            } catch (err) {
+                console.error('REGISTER ERROR:', err);
+                const msg = String(err).includes('Not Found')
+                    ? 'Endpoint /api/register/ no existe en el backend (404).'
+                    : 'No se pudo registrar. ' + String(err);
+                // Muestra el error en tu UI
+                const alert = document.getElementById('registerError');
+                if (alert) { alert.textContent = msg; alert.classList.remove('hidden'); }
+                else { alert(msg); }
+            }
+        });
+
+        // Login (por si lo necesitas aquí)
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = Object.fromEntries(new FormData(e.target).entries());
+            try {
+                const tokens = await postJSON(`${API_BASE_URL}/token/`, {
+                    username: data.username, password: data.password
+                });
+                localStorage.setItem('accessToken', tokens.access);
+                localStorage.setItem('refreshToken', tokens.refresh);
+                window.location.href = './index.html';
+            } catch (err) {
+                console.error('LOGIN ERROR:', err);
+                const alert = document.getElementById('loginError');
+                if (alert) { alert.textContent = 'No se pudo iniciar sesión. ' + String(err); alert.classList.remove('hidden'); }
+                else { alert('No se pudo iniciar sesión.'); }
+            }
+        });
+
+        // === fetch robusto (soporta errores HTML 404, etc.) ===
         async function fetchAPI(endpoint, method = 'GET', body = null) {
             const token = localStorage.getItem('accessToken');
             const headers = { 'Authorization': `Bearer ${token}` };
-            if (body) {
-                headers['Content-Type'] = 'application/json';
-            }
-            const config = { method, headers };
-            if (body) {
-                config.body = JSON.stringify(body);
-            }
-            const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
-            if (response.status === 401) {
+            if (body) headers['Content-Type'] = 'application/json';
+
+            const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+                method,
+                headers,
+                body: body ? JSON.stringify(body) : undefined
+            });
+
+            if (res.status === 401) {
                 logout();
                 throw new Error('Unauthorized');
             }
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(JSON.stringify(errorData));
+            if (res.status === 204) return null;
+
+            const ct = res.headers.get('content-type') || '';
+            if (!res.ok) {
+                let detail = '';
+                try {
+                    detail = ct.includes('application/json') ? JSON.stringify(await res.json())
+                        : await res.text();
+                } catch (_) {
+                    detail = `HTTP ${res.status}`;
+                }
+                throw new Error(detail);
             }
-            if (response.status === 204) { return null; }
-            return response.json();
+            return ct.includes('application/json') ? res.json() : res.text();
         }
 
         async function initApp() {
@@ -369,13 +460,19 @@
         }
 
         async function loadUserProfile() {
-            try { rState.profile = await fetchAPI('/profile/'); }
-            catch (error) { if (error.message !== 'Unauthorized') console.error('Error cargando perfil:', error); }
+            try {
+                rState.profile = await fetchAPI('/me/');
+            } catch (error) {
+                if (error.message !== 'Unauthorized') console.error('Error cargando perfil:', error);
+            }
         }
 
         async function cargarTransacciones() {
-            try { rState.transactions = await fetchAPI('/transactions/'); }
-            catch (error) { if (error.message !== 'Unauthorized') console.error('Error cargando transacciones:', error); }
+            try {
+                rState.transactions = await fetchAPI('/transactions/');
+            } catch (error) {
+                if (error.message !== 'Unauthorized') console.error('Error cargando transacciones:', error);
+            }
         }
 
         function renderAll() {
@@ -391,10 +488,15 @@
         }
 
         function renderGoal() {
-            const balance = rState.transactions.filter(t => t.transaction_type === 'IN').reduce((sum, t) => sum + parseFloat(t.amount), 0) - rState.transactions.filter(t => t.transaction_type === 'OUT').reduce((sum, t) => sum + parseFloat(t.amount), 0);
-            const saved = Math.max(0, balance);
+            const ingresos = rState.transactions.filter(t => t.transaction_type === 'IN');
+            const gastos = rState.transactions.filter(t => t.transaction_type === 'OUT');
+            const sumIng = ingresos.reduce((s, t) => s + parseFloat(t.amount), 0);
+            const sumGas = gastos.reduce((s, t) => s + parseFloat(t.amount), 0);
+            const saved = Math.max(0, sumIng - sumGas);
+
             const goalAmount = parseFloat(rState.profile.goal_amount) || 0;
             const progress = goalAmount > 0 ? Math.min(100, (saved / goalAmount) * 100) : 0;
+
             document.getElementById('goalTitle').textContent = rState.profile.goal_name || 'Meta de Ahorro';
             document.getElementById('goalProgressLabel').textContent = `${progress.toFixed(0)}%`;
             document.getElementById('goalSaved').textContent = `S/ ${saved.toFixed(2)}`;
@@ -405,8 +507,9 @@
         function renderDashboard() {
             const ingresos = rState.transactions.filter(t => t.transaction_type === 'IN');
             const gastos = rState.transactions.filter(t => t.transaction_type === 'OUT');
-            const sumIng = ingresos.reduce((sum, t) => sum + parseFloat(t.amount), 0);
-            const sumGas = gastos.reduce((sum, t) => sum + parseFloat(t.amount), 0);
+            const sumIng = ingresos.reduce((s, t) => s + parseFloat(t.amount), 0);
+            const sumGas = gastos.reduce((s, t) => s + parseFloat(t.amount), 0);
+
             document.getElementById('sumIngresos').textContent = `S/ ${sumIng.toFixed(2)}`;
             document.getElementById('sumGastos').textContent = `S/ ${sumGas.toFixed(2)}`;
             document.getElementById('sumBalance').textContent = `S/ ${(sumIng - sumGas).toFixed(2)}`;
@@ -416,12 +519,14 @@
                 acc[cat] = (acc[cat] || 0) + parseFloat(gasto.amount);
                 return acc;
             }, {});
-            const catLabels = Object.keys(gastosPorCategoria).map(key => ({ 'AL': 'Alim.', 'TR': 'Trans.', 'SE': 'Serv.', 'VI': 'Viv.', 'OC': 'Ocio', 'SA': 'Salud', 'ED': 'Educ.', 'OT': 'Otros' }[key]));
+
+            const LABELS = { AL: 'Alim.', TR: 'Trans.', SE: 'Serv.', VI: 'Viv.', OC: 'Ocio', SA: 'Salud', ED: 'Educ.', OT: 'Otros' };
+            const catLabels = Object.keys(gastosPorCategoria).map(k => LABELS[k]);
             const catData = Object.values(gastosPorCategoria);
 
-            const pieCtx = document.getElementById('pieCat').getContext('2d');
+            const ctx = document.getElementById('pieCat').getContext('2d');
             if (pieChart) pieChart.destroy();
-            pieChart = new Chart(pieCtx, {
+            pieChart = new Chart(ctx, {
                 type: 'doughnut',
                 data: { labels: catLabels, datasets: [{ data: catData, borderWidth: 0 }] },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } } }
@@ -431,12 +536,14 @@
         function renderHistory() {
             const historialEl = document.getElementById('historial');
             historialEl.innerHTML = '';
-            const allTransactions = [...rState.transactions].sort((a, b) => new Date(b.date) - new Date(a.date));
-            if (!allTransactions.length) {
+            const all = [...rState.transactions].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            if (!all.length) {
                 historialEl.innerHTML = '<div class="text-slate-500 text-sm p-4 text-center">Sin registros.</div>';
                 return;
             }
-            allTransactions.forEach(item => {
+
+            all.forEach(item => {
                 const isIncome = item.transaction_type === 'IN';
                 const amountClass = isIncome ? 'text-green-600' : 'text-red-600';
                 const sign = isIncome ? '+' : '-';
@@ -444,15 +551,15 @@
                 row.className = 'flex justify-between items-center py-3';
                 row.innerHTML = `
                 <div>
-                    <div class="font-semibold">${item.description || (isIncome ? 'Ingreso' : 'Gasto')}</div>
-                    <div class="text-xs text-slate-500">${item.date}</div>
+                <div class="font-semibold">${item.description || (isIncome ? 'Ingreso' : 'Gasto')}</div>
+                <div class="text-xs text-slate-500">${item.date}</div>
                 </div>
                 <div class="flex items-center gap-4">
-                    <div class="font-bold ${amountClass}">${sign} S/ ${parseFloat(item.amount).toFixed(2)}</div>
-                    <div class="flex gap-2">
-                        <button class="action-btn edit-btn" data-id="${item.id}">Editar</button>
-                        <button class="action-btn delete-btn" data-id="${item.id}">Borrar</button>
-                    </div>
+                <div class="font-bold ${amountClass}">${sign} S/ ${parseFloat(item.amount).toFixed(2)}</div>
+                <div class="flex gap-2">
+                    <button class="action-btn edit-btn" data-id="${item.id}">Editar</button>
+                    <button class="action-btn delete-btn" data-id="${item.id}">Borrar</button>
+                </div>
                 </div>`;
                 historialEl.appendChild(row);
             });
@@ -469,8 +576,18 @@
 
             const tabIngresos = document.getElementById('tabIngresos');
             const tabGastos = document.getElementById('tabGastos');
-            tabIngresos.addEventListener('click', () => { formIngresos.classList.remove('hidden'); formGastos.classList.add('hidden'); tabIngresos.classList.add('active'); tabGastos.classList.remove('active'); });
-            tabGastos.addEventListener('click', () => { formGastos.classList.remove('hidden'); formIngresos.classList.add('hidden'); tabGastos.classList.add('active'); tabIngresos.classList.remove('active'); });
+            tabIngresos.addEventListener('click', () => {
+                formIngresos.classList.remove('hidden');
+                formGastos.classList.add('hidden');
+                tabIngresos.classList.add('active');
+                tabGastos.classList.remove('active');
+            });
+            tabGastos.addEventListener('click', () => {
+                formGastos.classList.remove('hidden');
+                formIngresos.classList.add('hidden');
+                tabGastos.classList.add('active');
+                tabIngresos.classList.remove('active');
+            });
 
             document.getElementById('historial').addEventListener('click', (e) => {
                 if (e.target.classList.contains('delete-btn')) { handleDeleteClick(e.target.dataset.id); }
@@ -497,18 +614,24 @@
                 setTodayDate();
                 await cargarTransacciones();
                 renderAll();
-            } catch (error) { showToast('⚠️ Error al guardar el registro.'); }
+            } catch (error) {
+                console.error(error);
+                showToast('⚠️ Error al guardar el registro.');
+            }
         }
 
         async function handleProfileUpdate(e) {
             e.preventDefault();
             const data = Object.fromEntries(new FormData(e.target).entries());
             try {
-                rState.profile = await fetchAPI('/profile/', 'PUT', data);
+                rState.profile = await fetchAPI('/me/', 'PUT', data);
                 showToast('✅ Perfil actualizado');
                 profileModal.classList.remove('show');
                 renderAll();
-            } catch (error) { showToast('⚠️ Error al actualizar el perfil.'); }
+            } catch (error) {
+                console.error(error);
+                showToast('⚠️ Error al actualizar el perfil.');
+            }
         }
 
         async function handleDeleteClick(id) {
@@ -518,7 +641,10 @@
                     showToast('✅ Registro eliminado');
                     await cargarTransacciones();
                     renderAll();
-                } catch (error) { showToast('⚠️ Error al eliminar.'); }
+                } catch (error) {
+                    console.error(error);
+                    showToast('⚠️ Error al eliminar.');
+                }
             }
         }
 
@@ -537,14 +663,17 @@
                     editCategoryWrapper.style.display = 'none';
                 }
                 editModal.classList.add('show');
-            } catch (error) { showToast('⚠️ No se pudo cargar el registro.'); }
+            } catch (error) {
+                console.error(error);
+                showToast('⚠️ No se pudo cargar el registro.');
+            }
         }
 
         function openProfileModal() {
             const form = document.getElementById('profileForm');
             form.elements.name.value = rState.profile.name || '';
             form.elements.goal_name.value = rState.profile.goal_name || '';
-            form.elements.goal_amount.value = parseFloat(rState.profile.goal_amount) || '0.00';
+            form.elements.goal_amount.value = parseFloat(rState.profile.goal_amount || 0).toFixed(2);
             profileModal.classList.add('show');
         }
 
@@ -556,7 +685,7 @@
                 date: form.elements.date.value,
                 amount: form.elements.amount.value,
                 description: form.elements.description.value,
-                transaction_type: form.elements.transaction_type.value,
+                transaction_type: form.elements.transaction_type.value
             };
             if (data.transaction_type === 'OUT') {
                 data.category = form.elements.category.value;
@@ -567,7 +696,10 @@
                 editModal.classList.remove('show');
                 await cargarTransacciones();
                 renderAll();
-            } catch (error) { showToast('⚠️ Error al actualizar.'); }
+            } catch (error) {
+                console.error(error);
+                showToast('⚠️ Error al actualizar.');
+            }
         }
 
         async function handleExportClick() {
@@ -577,9 +709,7 @@
                 const response = await fetch(`${API_BASE_URL}/export/csv/`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-
                 if (!response.ok) { throw new Error('Error al generar el reporte.'); }
-
                 const blob = await response.blob();
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -615,7 +745,13 @@
         }
 
         function showRandomTip() {
-            const TIPS = ["Registra tus gastos tan pronto como ocurren.", "Crea un presupuesto mensual y apégate a él.", "Automatiza tus ahorros.", "Revisa tus suscripciones y cancela las que no uses.", "Evita las compras impulsivas esperando 24 horas."];
+            const TIPS = [
+                "Registra tus gastos tan pronto como ocurren.",
+                "Crea un presupuesto mensual y apégate a él.",
+                "Automatiza tus ahorros.",
+                "Revisa tus suscripciones y cancela las que no uses.",
+                "Evita las compras impulsivas esperando 24 horas."
+            ];
             document.getElementById('tipText').textContent = TIPS[Math.floor(Math.random() * TIPS.length)];
         }
     </script>
