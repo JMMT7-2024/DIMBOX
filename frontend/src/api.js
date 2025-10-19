@@ -3,7 +3,7 @@ import axios from 'axios';
 
 // La URL de tu backend.
 // Para desarrollo local:
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = 'https://dimbox.onrender.com/api';
 // Para producción (ejemplo):
 // const API_BASE_URL = 'https://tu-backend-en-la-nube.com/api';
 

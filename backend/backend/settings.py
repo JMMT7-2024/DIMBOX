@@ -133,24 +133,25 @@ if not DEBUG:
 # --------- CORS / CSRF (Clean Configuration!) ----------
 
 # BEST PRACTICE: Allow all in development (DEBUG=True), use whitelist in production (DEBUG=False)
-CORS_ALLOW_ALL_ORIGINS = DEBUG
+CORS_ALLOW_ALL_ORIGINS = False
+
 
 # PRODUCTION WHITELIST!
 # Put the URL Firebase will give your frontend here.
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    # 'https://your-project-name.web.app',     # Example Firebase Hosting
-    # 'https://your-project-name.firebaseapp.com', # Example Firebase Hosting
+    "https://prueba-diovic.web.app",
+    "https://prueba-diovic.firebaseapp.com",
 ]
 
 # (Your CSRF_TRUSTED_ORIGINS and CORS_ALLOW_HEADERS looked fine)
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    # "https://*.web.app",
-    # "https://*.firebaseapp.com",
-    # "https://*.onrender.com", # If you deploy the backend to Render
+    "https://prueba-diovic.web.app",
+    "https://prueba-diovic.firebaseapp.com",
+    "https://dimbox.onrender.com",  # dominio del backend
 ]
 
 CORS_ALLOW_HEADERS = [
