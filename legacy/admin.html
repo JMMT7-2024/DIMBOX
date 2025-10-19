@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Panel de Administración</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+    <style>
+        :root {
+            --accent: #90EE90;
+            --ink: #1A202C;
+            --line: #E2E8F0;
+            --bg: #F9FAFB
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg)
+        }
+
+        .card {
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, .06)
+        }
+
+        .btn {
+            font-weight: 700;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 6px 10px
+        }
+
+        .btn:hover {
+            filter: brightness(.98)
+        }
+
+        .btn-accent {
+            background: var(--accent);
+            color: var(--ink);
+            border-color: transparent
+        }
+
+        .pill {
+            padding: 8px 12px;
+            border-radius: 999px;
+            border: 1px solid var(--line);
+            outline: none
+        }
+
+        .badge {
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            border: 1px solid var(--line)
+        }
+    </style>
+    <script>
+        // Cambia esto si usas Hosting sin rewrites:
+        // const API_BASE_URL = 'https://TU_BACKEND/api';
+        const API_BASE_URL = 'https://dimbox-backend-161965548961.us-central1.run.app/api';
+    </script>
+</head>
+
+<body class="p-4 sm:p-6 max-w-6xl mx-auto">
+
+    <header class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl sm:text-3xl font-extrabold">Panel de Administración</h1>
+        <div class="flex gap-3">
+            <a href="./index.html" class="btn">Ir al Panel de Usuario</a>
+            <button id="logoutBtn" class="btn text-red-600 border-red-200">Salir</button>
+        </div>
+    </header>
+
+    <section class="grid md:grid-cols-4 gap-4 mb-6">
+        <div class="card p-4">
+            <div class="text-slate-500 text-sm">Usuarios Totales</div>
+            <div id="m_users" class="text-3xl font-extrabold">—</div>
+        </div>
+        <div class="card p-4">
+            <div class="text-slate-500 text-sm">Premium</div>
+            <div id="m_premium" class="text-3xl font-extrabold">—</div>
+        </div>
+        <div class="card p-4">
+            <div class="text-slate-500 text-sm">Free</div>
+            <div id="m_free" class="text-3xl font-extrabold">—</div>
+        </div>
+        <div class="card p-4">
+            <div class="text-slate-500 text-sm">Activos (Premium)</div>
+            <div id="m_active" class="text-3xl font-extrabold">—</div>
+        </div>
+    </section>
+
+    <section class="card p-4">
+        <div class="flex items-center gap-3 mb-3">
+            <input id="q" class="pill flex-1" placeholder="Buscar (nombre, usuario o email)" />
+            <button id="btnBuscar" class="btn-accent">Buscar</button>
+            <button id="btnLimpiar" class="btn">Limpiar</button>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead>
+                    <tr class="text-left text-slate-500">
+                        <th class="p-2">Usuario</th>
+                        <th class="p-2">Email</th>
+                        <th class="p-2">Nombre</th>
+                        <th class="p-2">Plan</th>
+                        <th class="p-2">Rol</th>
+                        <th class="p-2">Activo</th>
+                        <th class="p-2">Registros</th>
+                        <th class="p-2">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="rows"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <script>
+        // ------------ Helpers base ------------
+        const token = localStorage.getItem('access');
+
+        function goLogin() {
+            localStorage.removeItem('access');
+            localStorage.removeItem('refresh');
+            localStorage.removeItem('me');
+            location.href = './login.html';
+        }
+
+        async function fetchJSON(url, opts = {}) {
+            const r = await fetch(url, {
+                ...opts,
+                headers: {
+                    'Authorization': 'Bearer ' + (localStorage.getItem('access') || ''),
+                    ...(opts.headers || {})
+                }
+            });
+            if (r.status === 401) { goLogin(); return; }
+            if (!r.ok) {
+                const t = await r.text().catch(() => '');
+                throw new Error(`HTTP ${r.status} ${url}: ${t}`);
+            }
+            return r.json();
+        }
+
+        // ------------ Guard admin ------------
+        async function guardAdmin() {
+            if (!token) { goLogin(); return; }
+            let me = null;
+            try {
+                me = JSON.parse(localStorage.getItem('me') || 'null');
+                if (!me) me = await fetchJSON(`${API_BASE_URL}/me/`);
+            } catch (e) { goLogin(); return; }
+
+            if (!me || me.role !== 'ADMIN') {
+                alert('Tu cuenta no tiene permisos de administrador.');
+                location.href = './index.html';
+                return;
+            }
+            localStorage.setItem('me', JSON.stringify(me));
+        }
+
+        // ------------ UI y endpoints ------------
+        async function loadStats() {
+            try {
+                const s = await fetchJSON(`${API_BASE_URL}/admin/stats/`);
+                // backend devuelve {total, premium, free, active}
+                document.getElementById('m_users').textContent = s.total ?? '0';
+                document.getElementById('m_premium').textContent = s.premium ?? '0';
+                document.getElementById('m_free').textContent = s.free ?? '0';
+                document.getElementById('m_active').textContent = s.active ?? '0';
+            } catch (e) {
+                console.warn('stats:', e.message);
+                document.getElementById('m_users').textContent = '—';
+                document.getElementById('m_premium').textContent = '—';
+                document.getElementById('m_free').textContent = '—';
+                document.getElementById('m_active').textContent = '—';
+            }
+        }
+
+        async function loadUsers() {
+            const qv = (document.getElementById('q').value || '').trim();
+            const url = qv ? `${API_BASE_URL}/admin/users/?q=${encodeURIComponent(qv)}`
+                : `${API_BASE_URL}/admin/users/`;
+            try {
+                const data = await fetchJSON(url);
+                renderRows(data);
+            } catch (e) {
+                console.warn('users:', e.message);
+                renderRows([]);
+            }
+        }
+
+        function btn(label, action) {
+            return `<button class="btn" data-action="${action}">${label}</button>`;
+        }
+
+        function renderRows(list) {
+            const tbody = document.getElementById('rows');
+            tbody.innerHTML = '';
+            list.forEach(u => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-t';
+                tr.dataset.id = u.id;
+                tr.innerHTML = `
+          <td class="p-2 font-semibold">${u.username}</td>
+          <td class="p-2">${u.email || ''}</td>
+          <td class="p-2">${u.name || ''}</td>
+          <td class="p-2"><span class="badge">${u.subscription}</span></td>
+          <td class="p-2"><span class="badge">${u.role}</span></td>
+          <td class="p-2">${u.is_active ? '✅' : '⛔'}</td>
+          <td class="p-2">${u.record_count ?? 0}</td>
+          <td class="p-2 flex flex-wrap gap-2">
+            ${btn('Premium', 'plan-premium')}
+            ${btn('Free', 'plan-free')}
+            ${btn(u.is_active ? 'Desactivar' : 'Activar', u.is_active ? 'deactivate' : 'activate')}
+            ${btn('Rol ADMIN', 'role-admin')}
+            ${btn('Rol USER', 'role-user')}
+          </td>
+        `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Delegación de eventos para la tabla
+        document.getElementById('rows').addEventListener('click', async (e) => {
+            const b = e.target.closest('button'); if (!b) return;
+            const tr = e.target.closest('tr'); const id = tr?.dataset?.id; if (!id) return;
+            const action = b.dataset.action;
+
+            try {
+                if (action === 'plan-premium') {
+                    await fetchJSON(`${API_BASE_URL}/admin/users/${id}/set-plan/`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ plan: 'PREMIUM' })
+                    });
+                } else if (action === 'plan-free') {
+                    await fetchJSON(`${API_BASE_URL}/admin/users/${id}/set-plan/`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ plan: 'FREE' })
+                    });
+                } else if (action === 'activate' || action === 'deactivate') {
+                    await fetchJSON(`${API_BASE_URL}/admin/users/${id}/set-active/`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ is_active: action === 'activate' })
+                    });
+                } else if (action === 'role-admin') {
+                    await fetchJSON(`${API_BASE_URL}/admin/users/${id}/set-role/`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ role: 'ADMIN' })
+                    });
+                } else if (action === 'role-user') {
+                    await fetchJSON(`${API_BASE_URL}/admin/users/${id}/set-role/`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ role: 'USER' })
+                    });
+                }
+                await Promise.all([loadStats(), loadUsers()]);
+            } catch (err) {
+                console.error(err);
+                alert('Error ejecutando acción (revisa permisos y conexión).');
+            }
+        });
+
+        // Controles de búsqueda y logout
+        document.getElementById('btnBuscar').addEventListener('click', loadUsers);
+        document.getElementById('btnLimpiar').addEventListener('click', () => { document.getElementById('q').value = ''; loadUsers(); });
+        document.getElementById('logoutBtn').addEventListener('click', () => { goLogin(); });
+
+        // Init
+        (async function init() {
+            await guardAdmin();
+            await Promise.all([loadStats(), loadUsers()]);
+        })();
+    </script>
+</body>
+
+</html>
