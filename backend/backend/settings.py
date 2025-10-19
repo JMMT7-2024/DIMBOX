@@ -151,7 +151,7 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:5173",
     "https://prueba-diovic.web.app",
     "https://prueba-diovic.firebaseapp.com",
-    "https://dimbox.onrender.com",  # dominio del backend
+    "https://dimbox.onrender.com",
 ]
 
 CORS_ALLOW_HEADERS = [
