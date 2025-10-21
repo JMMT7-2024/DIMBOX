@@ -1,13 +1,17 @@
+# core/permissions.py
 from rest_framework.permissions import BasePermission
 
-class IsAdminUser(BasePermission):
+
+class IsAdminRole(BasePermission):
     """
-    Permite el acceso solo a usuarios con rol 'ADMIN' o 'SUPERADMIN'.
+    Permite acceso SOLO a:
+    - Usuarios con role == 'ADMIN', o
+    - Usuarios staff, o
+    - Superusuarios.
     """
+
     def has_permission(self, request, view):
-        # request.user existe gracias a IsAuthenticated
-        if not request.user or not request.user.is_authenticated:
+        u = request.user
+        if not (u and u.is_authenticated):
             return False
-        
-        user_role = getattr(request.user, 'role', 'USER')
-        return user_role in ('ADMIN', 'SUPERADMIN')
+        return getattr(u, "role", None) == "ADMIN" or u.is_staff or u.is_superuser

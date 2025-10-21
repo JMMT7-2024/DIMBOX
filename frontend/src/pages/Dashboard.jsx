@@ -1,189 +1,209 @@
-// src/pages/Dashboard.jsx
-import React, { useState, useEffect } from 'react';
-import api from '../api';
-import { Layout, Spin, Space, message, Card, Button } from 'antd'; // Importa Card y Button
-import { DownloadOutlined } from '@ant-design/icons'; // Importa el ícono
+import React from 'react';
+import {
+    Box,
+    Container,
+    Stack,
+    Grid,
+    GridItem,
+    Button,
+    Icon,
+    Flex,
+    Spinner,
+    Center,
+    Text,
+    useToast,
+    useBreakpointValue,
+} from '@chakra-ui/react';
+import { FiDownload } from 'react-icons/fi';
 
-// Importa todos tus componentes
+import api from '../api';
+
 import HeaderBar from '../components/HeaderBar';
 import GoalCard from '../components/GoalCard';
 import SummaryCards from '../components/SummaryCards';
 import TransactionForm from '../components/TransactionForm';
 import HistoryList from '../components/HistoryList';
+import CategoryChart from '../components/CategoryChart';
 import ProfileModal from '../components/ProfileModal';
 import EditTransactionModal from '../components/EditTransactionModal';
-import CategoryChart from '../components/CategoryChart'; // Importa el nuevo gráfico
-
-const { Content } = Layout;
 
 export default function Dashboard() {
-    const [transactions, setTransactions] = useState([]);
-    const [profile, setProfile] = useState({});
-    const [loading, setLoading] = useState(true);
+    const toast = useToast();
 
-    // Estado para los Modales
-    const [isProfileModalOpen, setProfileModalOpen] = useState(false);
-    const [isEditModalOpen, setEditModalOpen] = useState(false);
-    const [selectedTransaction, setSelectedTransaction] = useState(null);
+    // flags para no duplicar botones
+    const showHeaderEdit = useBreakpointValue({ base: true, md: false });
+    const showGoalConfigure = useBreakpointValue({ base: false, md: true });
 
-    // Carga todos los datos del backend
+    const [period, setPeriod] = React.useState('Este mes');
+
+    const [transactions, setTransactions] = React.useState([]);
+    const [profile, setProfile] = React.useState({});
+
+    const [loading, setLoading] = React.useState(true);
+    const [error, setError] = React.useState('');
+
+    const [isProfileModalOpen, setProfileModalOpen] = React.useState(false);
+    const [isEditModalOpen, setEditModalOpen] = React.useState(false);
+    const [selectedTransaction, setSelectedTransaction] = React.useState(null);
+
     const fetchData = async () => {
-        console.log("Dashboard: fetching data..."); // DEBUG
+        setError('');
+        setLoading(true);
         try {
-            const [profileData, transactionsData] = await Promise.all([
-                api.getProfile(),
-                api.getTransactions()
-            ]);
-            console.log("Dashboard: Nuevos datos recibidos:", profileData); // DEBUG
-            setProfile(profileData);
-            setTransactions(transactionsData);
-        } catch (error) {
-            console.error("Error fetching data", error);
-            message.error('Error al cargar tus datos. Intenta recargar.');
+            const [p, t] = await Promise.all([api.getProfile(), api.getTransactions()]);
+            setProfile(p || {});
+            setTransactions(Array.isArray(t) ? t : []);
+        } catch (e) {
+            console.error('Error fetching data', e);
+            setError('No se pudo cargar tus datos. Verifica tu conexión e intenta de nuevo.');
         } finally {
-            if (loading) setLoading(false); // Solo quita el spinner la primera vez
+            setLoading(false);
         }
     };
 
-    // Carga inicial al montar el componente
-    useEffect(() => {
+    React.useEffect(() => {
         fetchData();
     }, []);
 
-    // --- MANEJADORES DE ACCIONES ---
+    const handleNewTransaction = () => fetchData();
 
-    // Se llama cuando TransactionForm crea un nuevo registro
-    const handleNewTransaction = () => {
-        fetchData(); // Recarga todo
-    };
-
-    // Se llama desde HistoryList
     const handleDelete = async (id) => {
-        if (window.confirm('¿Estás seguro de borrar este registro?')) {
-            try {
-                await api.deleteTransaction(id);
-                message.success('Registro eliminado');
-                fetchData(); // Recarga los datos
-            } catch (err) {
-                console.error("Error borrando", err);
-                message.error("Error al borrar el registro.");
-            }
+        if (!window.confirm('¿Estás seguro de borrar este registro?')) return;
+        try {
+            await api.deleteTransaction(id);
+            toast({ title: 'Registro eliminado', status: 'success' });
+            fetchData();
+        } catch (e) {
+            console.error('Error borrando', e);
+            toast({ title: 'Error al borrar el registro', status: 'error' });
         }
     };
 
-    // Se llama desde HistoryList
-    const handleEdit = (transaction) => {
-        setSelectedTransaction(transaction);
+    const handleEdit = (tx) => {
+        setSelectedTransaction(tx);
         setEditModalOpen(true);
     };
 
-    // Se llama desde EditTransactionModal
     const handleTransactionUpdate = () => {
         setEditModalOpen(false);
         setSelectedTransaction(null);
-        fetchData(); // Solo recarga los datos
+        fetchData();
     };
 
-    // Se llama desde ProfileModal
     const handleProfileUpdate = () => {
-        setProfileModalOpen(false); // Cierra el modal
-        fetchData(); // ¡Vuelve a cargar TODO desde el backend!
+        setProfileModalOpen(false);
+        fetchData();
     };
 
-    // Se llama desde el nuevo botón de Exportar
     const handleExport = async () => {
-        message.loading('Generando tu reporte...', 0); // Muestra "cargando" sin tiempo límite
+        const id = 'export-toast';
+        toast({ id, title: 'Generando tu reporte…', status: 'loading', duration: 2000, isClosable: true });
         try {
             const response = await api.exportCsv();
-            // Crea un link temporal en memoria para descargar el archivo
             const url = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement('a');
             link.href = url;
-            link.setAttribute('download', 'mis_movimientos.csv'); // Nombre del archivo
+            link.setAttribute('download', 'mis_movimientos.csv');
             document.body.appendChild(link);
             link.click();
-            link.remove(); // Limpia el link temporal
+            link.remove();
             window.URL.revokeObjectURL(url);
-
-            message.destroy(); // Cierra el mensaje de "cargando"
-            message.success('¡Reporte descargado!');
-        } catch (err) {
-            message.destroy(); // Cierra el mensaje de "cargando"
-            message.error('Error al generar el reporte.');
+            toast.update(id, { title: '¡Reporte descargado!', status: 'success', duration: 1500 });
+        } catch {
+            toast.update(id, { title: 'Error al generar el reporte', status: 'error', duration: 2500 });
         }
     };
 
-    // Muestra el spinner solo en la carga inicial
-    if (loading && transactions.length === 0) {
+    if (loading) {
         return (
-            <Layout style={{ minHeight: '100vh', alignItems: 'center', justifyContent: 'center' }}>
-                <Spin size="large" />
-            </Layout>
+            <Center minH="70vh" bg="var(--background)">
+                <Stack align="center" spacing={3}>
+                    <Spinner thickness="4px" speed="0.65s" emptyColor="gray.200" color="green.500" size="xl" />
+                    <Text color="gray.500" fontSize="sm">Cargando…</Text>
+                </Stack>
+            </Center>
+        );
+    }
+
+    if (error) {
+        return (
+            <Center minH="70vh" bg="var(--background)">
+                <Stack align="center" spacing={4}>
+                    <Text color="red.500" fontWeight="semibold">{error}</Text>
+                    <Button onClick={fetchData} colorScheme="green">Reintentar</Button>
+                </Stack>
+            </Center>
         );
     }
 
     return (
-        <Layout style={{ minHeight: '100vh' }}>
+        <Box bg="var(--background)" minH="100vh">
             <HeaderBar
                 profile={profile}
+                period={period}
+                onChangePeriod={setPeriod}
                 onProfileClick={() => setProfileModalOpen(true)}
+                showEditButton={showHeaderEdit}
             />
 
-            <Content style={{ padding: '24px' }}>
-                {/* Contenedor centrado para el layout vertical */}
-                <div style={{ maxWidth: '960px', margin: '0 auto' }}>
-                    <Space direction="vertical" size="large" style={{ width: '100%' }}>
+            <Container maxW="container.xl" py={6}>
+                <Stack spacing={6}>
+                    <GoalCard
+                        profile={profile}
+                        transactions={transactions}
+                        period={period}
+                        onConfigure={() => setProfileModalOpen(true)}
+                        showConfigure={showGoalConfigure}
+                    />
 
-                        {/* --- ESTE ES EL ORDEN VERTICAL FINAL --- */}
+                    <SummaryCards transactions={transactions} period={period} />
 
-                        {/* 1. Meta de Ahorro */}
-                        <GoalCard profile={profile} transactions={transactions} />
+                    <Grid templateColumns={{ base: '1fr', md: '1fr 1fr' }} gap={6}>
+                        <GridItem>
+                            <TransactionForm onNewTransaction={handleNewTransaction} />
+                        </GridItem>
+                        <GridItem>
+                            <CategoryChart transactions={transactions} period={period} />
+                        </GridItem>
+                    </Grid>
 
-                        {/* 2. Resumen del Mes */}
-                        <SummaryCards transactions={transactions} />
+                    <HistoryList
+                        transactions={transactions}
+                        handleDelete={handleDelete}
+                        handleEdit={handleEdit}
+                    />
 
-                        {/* 3. Ingresos y Gastos (Formulario) */}
-                        <TransactionForm onNewTransaction={handleNewTransaction} />
+                    <Box
+                        border="1px solid var(--line)"
+                        bg="var(--card)"
+                        borderRadius="16px"
+                        p={4}
+                        boxShadow="var(--shadow-light)"
+                    >
+                        <Button leftIcon={<Icon as={FiDownload} />} onClick={handleExport} colorScheme="green">
+                            Exportar todo a CSV
+                        </Button>
+                    </Box>
+                </Stack>
+            </Container>
 
-                        {/* 4. Gráfico de Gastos por Categoría */}
-                        <CategoryChart transactions={transactions} />
-
-                        {/* 5. Últimos Movimientos (Historial) */}
-                        <HistoryList
-                            transactions={transactions}
-                            handleDelete={handleDelete}
-                            handleEdit={handleEdit}
-                        />
-
-                        {/* 6. Botón de Exportar */}
-                        <Card>
-                            <Button
-                                type="primary"
-                                icon={<DownloadOutlined />}
-                                onClick={handleExport}
-                            >
-                                Exportar todo a CSV
-                            </Button>
-                        </Card>
-
-                    </Space>
-                </div>
-            </Content>
-
-            {/* --- MODALES --- */}
             <ProfileModal
                 open={isProfileModalOpen}
+                isOpen={isProfileModalOpen}
                 onCancel={() => setProfileModalOpen(false)}
+                onClose={() => setProfileModalOpen(false)}
                 onUpdate={handleProfileUpdate}
                 profile={profile}
             />
 
             <EditTransactionModal
                 open={isEditModalOpen}
+                isOpen={isEditModalOpen}
                 onCancel={() => setEditModalOpen(false)}
+                onClose={() => setEditModalOpen(false)}
                 onUpdate={handleTransactionUpdate}
                 transaction={selectedTransaction}
             />
-        </Layout>
+        </Box>
     );
 }

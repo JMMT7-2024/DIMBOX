@@ -1,0 +1,53 @@
+/* frontend/src/styles/variables.css */
+
+/* COLORES */
+:root {
+    --primary-color: #90EE90;
+    /* Verde Lima (Lighter Green) */
+    --primary-color-rgb: 144, 238, 144;
+    /* RGB para gradientes/transparencias */
+
+    --secondary-color: #1A202C;
+    /* Tinta - Para texto principal y fondo de tarjetas oscuras */
+    --accent-color: #E2E8F0;
+    /* Para bordes y líneas sutiles */
+
+    --text-primary: #1A202C;
+    /* Tinta principal */
+    --text-secondary: #6B7280;
+    /* Gris para texto secundario */
+    --text-muted: #9CA3AF;
+    /* Gris para texto muy sutil */
+    --text-light: #D1D5DB;
+    /* Gris muy claro */
+
+    --bg-app: #F9FAFB;
+    /* Fondo general de la aplicación */
+    --bg-card: #FFFFFF;
+    /* Fondo de tarjetas */
+    --bg-muted: #F5F7FA;
+    /* Fondo de elementos sutiles (ej. tabs inactivas) */
+
+    --success-color: #4CAF50;
+    /* Verde de éxito */
+    --error-color: #F44336;
+    /* Rojo de error */
+    --warning-color: #FFC107;
+    /* Amarillo de advertencia */
+
+    /* SOMBRAS */
+    --shadow-light: 2px 2px 8px rgba(0, 0, 0, 0.05);
+    --shadow-medium: 4px 4px 15px rgba(0, 0, 0, 0.08);
+    --shadow-hover: 6px 6px 20px rgba(0, 0, 0, 0.12);
+
+    /* RADIOS DE BORDE */
+    --border-radius-base: 16px;
+    --border-radius-lg: 16px;
+    --border-radius-md: 12px;
+    --border-radius-sm: 8px;
+
+    /* FUENTES */
+    --font-family-base: 'Inter', sans-serif;
+    --font-size-base: 14px;
+    --line-height-base: 1.5;
+}

@@ -1,50 +1,41 @@
 // src/App.jsx
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { ConfigProvider, App as AntApp } from 'antd'; // Importa ConfigProvider y AntApp
-import { customTheme } from './theme'; // Importa tu tema
-
-// --- ¡ESTA ES LA LÍNEA CORREGIDA! ---
-import { AuthProvider, useAuth } from './auth/AuthContext';
-// ------------------------------------
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Admin from './pages/Admin';
 import ProtectedRoute from './auth/ProtectedRoute';
 
-// Esta es la función que renderiza las rutas
-function AppRoutes() {
+export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Pública */}
         <Route path="/login" element={<Login />} />
 
-        <Route path="/" element={<ProtectedRoute />}>
-          <Route index element={<Dashboard />} />
-        </Route>
+        {/* Protegidas (envolviendo cada página) */}
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
 
-        <Route path="/admin" element={<ProtectedRoute adminOnly={true} />}>
-          <Route index element={<Admin />} />
-        </Route>
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute adminOnly>
+              <Admin />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Catch-all: manda a raíz (ProtectedRoute decidirá si ir a login o dashboard) */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
-}
-
-// Este es el componente principal que exportamos
-export default function App() {
-  return (
-    // 1. AuthProvider: Da el contexto de usuario/login a toda la app
-    <AuthProvider>
-      {/* 2. ConfigProvider: Aplica tu tema verde (theme.js) */}
-      <ConfigProvider theme={customTheme}>
-        {/* 3. AntApp: Permite que 'message.success' use tu tema */}
-        <AntApp>
-          {/* 4. AppRoutes: Renderiza las rutas/páginas */}
-          <AppRoutes />
-        </AntApp>
-      </ConfigProvider>
-    </AuthProvider>
-  )
 }

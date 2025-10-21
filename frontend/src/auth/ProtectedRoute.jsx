@@ -1,31 +1,34 @@
 // src/auth/ProtectedRoute.jsx
 import React from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
+import { Center, Spinner } from '@chakra-ui/react';
 
-export default function ProtectedRoute({ adminOnly = false }) {
-    console.log("ProtectedRoute: 1. Verificando ruta...");
-    const { user } = useAuth();
-    const token = localStorage.getItem('access');
-    console.log("ProtectedRoute: 2. Token encontrado en localStorage:", token);
+/**
+ * Envuelve una página protegida.
+ * - Si no hay usuario => redirige a /login
+ * - Si adminOnly=true => solo permite role ADMIN o staff/superuser
+ * - Muestra un spinner mientras Auth se inicializa
+ */
+export default function ProtectedRoute({ children, adminOnly = false }) {
+    const { user, loading } = useAuth();
 
-    if (!token) {
-        console.log("ProtectedRoute: 3. ¡No hay token! Redirigiendo a /login.");
+    if (loading) {
+        return (
+            <Center minH="100vh" bg="var(--background)">
+                <Spinner thickness="4px" speed="0.65s" emptyColor="gray.200" color="green.500" size="xl" />
+            </Center>
+        );
+    }
+
+    if (!user) {
         return <Navigate to="/login" replace />;
     }
 
-    console.log("ProtectedRoute: 4. Sí hay token. Verificando permisos de admin...");
-
     if (adminOnly) {
-        const me = JSON.parse(localStorage.getItem('me'));
-        const effectiveUser = user || me;
-
-        if (!effectiveUser || (effectiveUser.role !== 'ADMIN' && effectiveUser.role !== 'SUPERADMIN')) {
-            console.log("ProtectedRoute: 5. No es admin. Redirigiendo a /.");
-            return <Navigate to="/" replace />;
-        }
+        const isAdmin = user?.role === 'ADMIN' || user?.is_staff || user?.is_superuser;
+        if (!isAdmin) return <Navigate to="/" replace />;
     }
 
-    console.log("ProtectedRoute: 6. Permisos OK. Dejando pasar.");
-    return <Outlet />;
+    return children;
 }

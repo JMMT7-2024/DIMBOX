@@ -1,104 +1,28 @@
-:root {
-  --accent: #90EE90;
-  /* verde mint */
-  --accent-rgb: 144, 238, 144;
-  --ink: #0F172A;
-  /* slate-900 */
-  --muted: #64748B;
-  /* slate-500/600 */
-  --card: #FFFFFF;
-  --bg: #F7F9FC;
-  /* gris muy claro */
-  --line: #E2E8F0;
-}
+/* src/index.css */
 
+/* Resets globales básicos */
 html,
 body,
 #root {
-  height: 100%
+  height: 100%;
+  /* Asegura que la app pueda ocupar toda la altura */
+  line-height: 1.5;
+  /* Interlineado base razonable */
+  -webkit-font-smoothing: antialiased;
+  /* Mejora renderizado de fuentes en Webkit */
+  -moz-osx-font-smoothing: grayscale;
+  /* Mejora renderizado de fuentes en Firefox */
 }
 
 body {
   margin: 0;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-  background: var(--bg);
-  color: var(--ink);
+  /* Quita margen por defecto del navegador */
+  /* Chakra se encargará de la fuente, color de fondo y color de texto */
 }
 
-.pill {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 12px;
-  line-height: 18px;
-  background: rgba(var(--accent-rgb), .25);
-  color: #065F46;
-  border: 1px solid rgba(var(--accent-rgb), .55);
-}
+/* (Opcional) Puedes añadir otros resets globales mínimos si los necesitas,
+   pero evita definir estilos de componentes aquí. */
 
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 800;
-  letter-spacing: .2px;
-}
-
-.brand-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: #22c55e;
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, .15);
-}
-
-.card {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, .05);
-}
-
-:root {
-  --bg: #f6f7f9;
-  --ink: #0f172a;
-  --panel: #fff;
-  --line: #eceef2;
-}
-
-body {
-  background: var(--bg);
-  color: var(--ink);
-}
-
-.lbl {
-  display: block;
-  font-size: 12px;
-  color: #6b7280;
-  margin: 0 0 6px 2px;
-}
-
-.inp {
-  width: 100%;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 10px 12px;
-  background: #fff;
-}
-
-.pill-btn {
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 4px 10px;
-  background: #fff;
-  font-size: 12px;
-}
-
-.primary {
-  background: #84e28f;
-  border: none;
-  color: #0b3d16;
-  padding: 12px 16px;
-  border-radius: 12px;
-  font-weight: 700;
-}
+/* Elimina todas las definiciones de :root y las clases .pill, .card, .inp, etc.
+   Esos estilos ahora se manejan con el tema de Chakra (theme.js),
+   las variables CSS (variables.css) y los style props en los componentes JSX. */

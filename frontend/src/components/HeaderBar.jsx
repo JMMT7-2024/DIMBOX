@@ -1,56 +1,59 @@
 import React from 'react';
+import { Box, Container, Flex, Stack, Text, Button, Badge, useToast } from '@chakra-ui/react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
-import { Layout, Button, Typography, Space, Avatar } from 'antd';
-import { LogoutOutlined, UserOutlined } from '@ant-design/icons';
-import { Link } from 'react-router-dom';
+import { FiSettings } from 'react-icons/fi';
 
-const { Header } = Layout;
-const { Text } = Typography;
+export default function HeaderBar({
+    profile = {},
+    period,
+    onChangePeriod,
+    onProfileClick,
+    showEditButton = true,
+}) {
+    const { logout } = useAuth();
+    const navigate = useNavigate();
+    const toast = useToast();
 
-// --- ¡LA CLAVE ESTÁ AQUÍ! ---
-// Añadimos 'onProfileClick' a la lista de props que recibe el componente.
-export default function HeaderBar({ profile, onProfileClick }) {
-    const { logout, user } = useAuth();
-    const greeting = profile.name || user?.username || 'Usuario';
-    const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPERADMIN';
+    const handleLogout = async () => {
+        try {
+            await logout();
+            navigate('/login');
+        } catch {
+            toast({ title: 'No se pudo cerrar sesión', status: 'error' });
+        }
+    };
+
+    const name = profile?.name || profile?.username || 'Hola';
 
     return (
-        <Header style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            borderBottom: '1px solid #E2E8F0',
-            background: '#FFFFFF',
-            position: 'sticky', // Opcional: fija el header arriba
-            top: 0,
-            zIndex: 10,
-        }}>
-            <div>
-                <Text strong style={{ fontSize: '20px' }}>Hola, {greeting} 👋</Text>
-            </div>
-            <Space size="middle">
-                {isAdmin && (
-                    <Link to="/admin">
-                        <Button>Panel Admin</Button>
-                    </Link>
-                )}
+        <Box bg="var(--background)" borderBottom="1px solid var(--line)">
+            <Container maxW="container.xl" py={4}>
+                <Flex align="center" justify="space-between" wrap="wrap" gap={3}>
+                    <Stack spacing={1}>
+                        <Text fontSize={{ base: 'xl', md: '2xl' }} fontWeight="extrabold">
+                            {name} <span role="img" aria-label="saludo">👋</span>
+                        </Text>
+                        <Badge colorScheme="green" w="fit-content">Conectado</Badge>
+                    </Stack>
 
-                {/* --- ¡Y AQUÍ! ---
-                // Conectamos el 'onClick' del botón a la prop 'onProfileClick'.
-                */}
-                <Button icon={<UserOutlined />} onClick={onProfileClick}>
-                    Editar Perfil
-                </Button>
-
-                <Button
-                    type="primary"
-                    danger
-                    icon={<LogoutOutlined />}
-                    onClick={logout}
-                >
-                    Salir
-                </Button>
-            </Space>
-        </Header>
+                    <Flex align="center" gap={2}>
+                        {showEditButton && (
+                            <Button
+                                leftIcon={<FiSettings />}
+                                variant="outline"
+                                size="sm"
+                                onClick={onProfileClick}
+                            >
+                                Editar perfil
+                            </Button>
+                        )}
+                        <Button colorScheme="red" size="sm" onClick={handleLogout}>
+                            Salir
+                        </Button>
+                    </Flex>
+                </Flex>
+            </Container>
+        </Box>
     );
 }

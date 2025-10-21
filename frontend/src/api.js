@@ -1,23 +1,18 @@
 // src/api.js
 import axios from 'axios';
 
-// La URL de tu backend.
-// Para desarrollo local:
+// Base del backend (ya incluye /api)
 const API_BASE_URL = 'https://dimbox.onrender.com/api';
-// Para producción (ejemplo):
-// const API_BASE_URL = 'https://tu-backend-en-la-nube.com/api';
+// Para dev local podrías usar: const API_BASE_URL = 'http://127.0.0.1:8000/api';
 
 const apiClient = axios.create({
     baseURL: API_BASE_URL,
 });
 
-/**
- * Interceptor de Petición (Request)
- * Se ejecuta ANTES de que cada petición sea enviada.
- * Su trabajo es tomar el 'access' token desde localStorage
- * y añadirlo al header 'Authorization'.
- */
-apiClient.interceptors.request.use(config => {
+/* ============================
+   Interceptores
+================================ */
+apiClient.interceptors.request.use((config) => {
     const token = localStorage.getItem('access');
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
@@ -25,89 +20,77 @@ apiClient.interceptors.request.use(config => {
     return config;
 });
 
-/**
- * Interceptor de Respuesta (Response)
- * Se ejecuta DESPUÉS de recibir una respuesta del backend.
- * Su trabajo es detectar errores, especialmente el '401 Unauthorized'.
- */
 apiClient.interceptors.response.use(
-    (response) => response, // Si todo está bien (2xx), devuelve la respuesta.
+    (response) => response,
     (error) => {
-        // Si recibimos un error 401 (Sesión expirada o token inválido)
+        // Si expira o es inválido el token => limpiamos y recargamos
         if (error.response?.status === 401) {
-            console.error("Sesión expirada o inválida. Redirigiendo al login.");
-
-            // Limpiamos el storage para forzar un cierre de sesión
             localStorage.removeItem('access');
             localStorage.removeItem('refresh');
             localStorage.removeItem('me');
-
-            // Recargamos la página. 
-            // El componente ProtectedRoute se encargará de redirigir al /login
             window.location.reload();
         }
-
-        // Rechazamos la promesa para que el .catch() en el componente se active
         return Promise.reject(error);
     }
 );
 
-
-// Exportamos un objeto con todas las funciones que la app necesita
+/* ============================
+   API PÚBLICA
+================================ */
 export default {
-
-    // --- Auth ---
-    login: async (username, password) => {
-        // 1. Pide el token
+    /* ---------- Auth ---------- */
+    async login(username, password) {
+        // 1) Token
         const { data: { access, refresh } } = await apiClient.post('/token/', { username, password });
 
-        // 2. Con el token, pide los datos del usuario ('me')
+        // 2) Perfil con ese token (todavía no está en localStorage)
         const { data: me } = await apiClient.get('/me/', {
-            headers: { Authorization: `Bearer ${access}` }
+            headers: { Authorization: `Bearer ${access}` },
         });
 
-        // Devolvemos todo para que AuthContext lo guarde
         return { access, refresh, me };
     },
 
-    register: (data) => apiClient.post('/register/', data),
+    register: (payload) => apiClient.post('/register/', payload),
 
-    // --- Perfil y Transacciones (Usuario) ---
-    getProfile: () => apiClient.get('/profile/').then(res => res.data),
+    /* ---------- Perfil / Usuario ---------- */
+    getProfile: () => apiClient.get('/profile/').then((r) => r.data),
+    updateProfile: (payload) => apiClient.put('/profile/', payload).then((r) => r.data),
 
-    updateProfile: (data) => apiClient.put('/profile/', data).then(res => res.data),
+    /* ---------- Transacciones ---------- */
+    getTransactions: () => apiClient.get('/transactions/').then((r) => r.data),
+    createTransaction: (payload) => apiClient.post('/transactions/', payload).then((r) => r.data),
+    deleteTransaction: (id) => apiClient.delete(`/transactions/${id}/`).then((r) => r.data),
+    updateTransaction: (id, payload) => apiClient.put(`/transactions/${id}/`, payload).then((r) => r.data),
 
-    getTransactions: () => apiClient.get('/transactions/').then(res => res.data),
+    exportCsv: () =>
+        apiClient.get('/export/csv/', { responseType: 'blob' }), // r.data es el blob
 
-    createTransaction: (data) => apiClient.post('/transactions/', data).then(res => res.data),
+    /* ============================
+       ADMIN (func-based views)
+       Endpoints en /api/admin/...
+    ============================= */
+    getAdminStats: () => apiClient.get('/admin/stats/').then((r) => r.data),
 
-    deleteTransaction: (id) => apiClient.delete(`/transactions/${id}/`),
+    /**
+     * Lista de usuarios con filtros/paginación:
+     * @param {Object} params
+     *  - q: string (búsqueda en username/email/name)
+     *  - plan: 'FREE' | 'PREMIUM'
+     *  - active: 'true' | 'false'
+     *  - page: number
+     *  - page_size: number
+     * Devuelve: { count, results: [...] }
+     */
+    getAdminUsers: (params = {}) =>
+        apiClient.get('/admin/users/', { params }).then((r) => r.data),
 
-    updateTransaction: (id, data) => apiClient.put(`/transactions/${id}/`, data),
+    adminSetPlan: (userId, plan) =>
+        apiClient.post(`/admin/users/${userId}/set-plan/`, { plan }).then((r) => r.data),
 
-    exportCsv: () => {
-        return apiClient.get('/export/csv/', {
-            responseType: 'blob', // ¡Importante! Le dice a axios que espere un archivo
-        });
-    },
+    adminSetActive: (userId, isActive) =>
+        apiClient.post(`/admin/users/${userId}/set-active/`, { is_active: isActive }).then((r) => r.data),
 
-    // --- Funciones de Administración ---
-    getAdminStats: () => apiClient.get('/admin/stats/').then(res => res.data),
-
-    getAdminUsers: (query = '') => {
-        const url = query ? `/admin/users/?q=${encodeURIComponent(query)}` : '/admin/users/';
-        return apiClient.get(url).then(res => res.data);
-    },
-
-    adminSetPlan: (userId, plan) => {
-        return apiClient.post(`/admin/users/${userId}/set-plan/`, { plan });
-    },
-
-    adminSetActive: (userId, isActive) => {
-        return apiClient.post(`/admin/users/${userId}/set-active/`, { is_active: isActive });
-    },
-
-    adminSetRole: (userId, role) => {
-        return apiClient.post(`/admin/users/${userId}/set-role/`, { role });
-    }
+    adminSetRole: (userId, role) =>
+        apiClient.post(`/admin/users/${userId}/set-role/`, { role }).then((r) => r.data),
 };

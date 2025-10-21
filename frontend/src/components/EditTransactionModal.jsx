@@ -1,113 +1,163 @@
+// src/components/EditTransactionModal.jsx
 import React, { useEffect, useState } from 'react';
-import { Modal, Form, Input, InputNumber, DatePicker, Select, Button, message } from 'antd';
+import {
+    Modal, ModalOverlay, ModalContent, ModalHeader, ModalFooter, ModalBody, ModalCloseButton,
+    FormControl, FormLabel, Input, NumberInput, NumberInputField, Select,
+    Button, useToast, Stack
+} from '@chakra-ui/react';
 import api from '../api';
-import dayjs from 'dayjs'; // Asegúrate de tener 'dayjs' instalado
+import moment from 'moment'; // Para manejo de fechas
 
-const { Option } = Select;
+// Opciones de categoría (igual que TransactionForm)
+const expenseCategories = [ /* ... tus categorías ... */];
+// const incomeCategories = [ /* ... si es necesario ... */ ];
 
 export default function EditTransactionModal({ open, onCancel, onUpdate, transaction }) {
-    const [form] = Form.useForm();
+    const toast = useToast();
     const [loading, setLoading] = useState(false);
 
-    // Tipo de transacción (para saber si mostrar la categoría)
+    // --- Estado para los campos del formulario ---
+    const [date, setDate] = useState('');
+    const [amount, setAmount] = useState('');
+    const [category, setCategory] = useState('');
+    const [description, setDescription] = useState('');
+    // ------------------------------------------
+
+    // Determina el tipo de transacción ('IN' o 'OUT') basado en el objeto 'transaction'
     const transactionType = transaction?.transaction_type || 'IN';
 
-    // Rellena el formulario cuando la transacción seleccionada cambia
+    // Rellena el formulario cuando se abre el modal o cambia la transacción seleccionada
     useEffect(() => {
         if (open && transaction) {
-            form.setFieldsValue({
-                ...transaction,
-                date: dayjs(transaction.date), // Convierte la fecha a objeto dayjs
-                amount: parseFloat(transaction.amount),
-            });
+            setDate(moment(transaction.date).format('YYYY-MM-DD')); // Formatea fecha a YYYY-MM-DD
+            setAmount(String(parseFloat(transaction.amount) || 0)); // Convierte monto a string
+            setCategory(transaction.category || ''); // Usa categoría o string vacío
+            setDescription(transaction.description || ''); // Usa descripción o string vacío
         }
-    }, [open, transaction, form]);
+    }, [open, transaction]); // Dependencias
 
-    const handleSubmit = async (values) => {
-        if (!transaction) return;
+    // Manejador del envío del formulario
+    const handleSubmit = async () => {
         setLoading(true);
+        // Validación básica
+        if (!date || !amount || parseFloat(amount) <= 0) {
+            toast({ title: "Datos inválidos", description: "Fecha y monto (positivo) son requeridos.", status: "warning", duration: 3000, isClosable: true });
+            setLoading(false);
+            return;
+        }
+        if (transactionType === 'OUT' && !category) {
+            toast({ title: "Datos inválidos", description: "Selecciona una categoría para el gasto.", status: "warning", duration: 3000, isClosable: true });
+            setLoading(false);
+            return;
+        }
 
         try {
-            // Prepara los datos para la API
-            const data = {
-                ...values,
-                date: values.date.format('YYYY-MM-DD'), // Convierte la fecha a string
-                transaction_type: transactionType,
+            // Prepara los datos para enviar a la API
+            const dataToSend = {
+                date: date,
+                amount: parseFloat(amount),
+                description: description || '',
+                transaction_type: transactionType, // Mantiene el tipo original
             };
+            if (transactionType === 'OUT') {
+                dataToSend.category = category;
+            }
 
-            await api.updateTransaction(transaction.id, data);
-            message.success('¡Registro actualizado!');
+            // console.log("EditModal: Enviando datos:", dataToSend, "ID:", transaction.id); // DEBUG
+
+            await api.updateTransaction(transaction.id, dataToSend); // Llama a la API de actualización
+            toast({ title: "Éxito", description: "Registro actualizado.", status: "success", duration: 3000, isClosable: true });
             onUpdate(); // Llama a la función del Dashboard para cerrar y recargar
+
         } catch (err) {
-            message.error('Error al actualizar.');
+            const errorDetail = err.response?.data?.detail || err.response?.data || err.message;
+            console.error('Error al actualizar:', errorDetail);
+            toast({ title: "Error", description: `No se pudo actualizar: ${errorDetail || 'Error desconocido'}`, status: "error", duration: 5000, isClosable: true });
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <Modal
-            title="Editar Transacción"
-            open={open}
-            onCancel={onCancel}
-            footer={[
-                <Button key="back" onClick={onCancel}>
-                    Cancelar
-                </Button>,
-                <Button key="submit" type="primary" loading={loading} onClick={() => form.submit()}>
-                    Guardar Cambios
-                </Button>,
-            ]}
-        >
-            <Form form={form} layout="vertical" onFinish={handleSubmit}>
-                <Form.Item
-                    name="date"
-                    label="Fecha"
-                    rules={[{ required: true, message: 'Selecciona una fecha' }]}
-                >
-                    <DatePicker style={{ width: '100%' }} />
-                </Form.Item>
+        <Modal isOpen={open} onClose={onCancel} isCentered size={{ base: 'full', sm: 'md' }}>
+            <ModalOverlay />
+            <ModalContent mx={4}>
+                <ModalHeader>Editar Transacción</ModalHeader>
+                <ModalCloseButton />
+                <ModalBody pb={6}>
+                    <Stack spacing={4}>
+                        {/* Campo Fecha */}
+                        <FormControl isRequired id="edit-date">
+                            <FormLabel fontSize="sm" color="gray.600">Fecha</FormLabel>
+                            <Input
+                                type="date"
+                                value={date}
+                                onChange={(e) => setDate(e.target.value)}
+                                size="lg"
+                                focusBorderColor="green.500"
+                            />
+                        </FormControl>
 
-                <Form.Item
-                    name="amount"
-                    label="Monto"
-                    rules={[{ required: true, message: 'Ingresa un monto' }]}
-                >
-                    <InputNumber
-                        style={{ width: '100%' }}
-                        min={0}
-                        step={0.01}
-                        prefix="S/ "
-                    />
-                </Form.Item>
+                        {/* Campo Monto */}
+                        <FormControl isRequired id="edit-amount">
+                            <FormLabel fontSize="sm" color="gray.600">Monto</FormLabel>
+                            <NumberInput
+                                min={0.01}
+                                step={1}
+                                precision={2}
+                                value={amount}
+                                onChange={(valueAsString) => setAmount(valueAsString)}
+                                size="lg"
+                                focusBorderColor="green.500"
+                            >
+                                <NumberInputField />
+                            </NumberInput>
+                        </FormControl>
 
-                {/* Solo muestra categoría si es un Gasto */}
-                {transactionType === 'OUT' && (
-                    <Form.Item
-                        name="category"
-                        label="Categoría"
-                        rules={[{ required: true, message: 'Selecciona una categoría' }]}
-                    >
-                        <Select>
-                            <Option value="AL">Alimentación</Option>
-                            <Option value="TR">Transporte</Option>
-                            <Option value="SE">Servicios</Option>
-                            <Option value="VI">Vivienda</Option>
-                            <Option value="OC">Ocio</Option>
-                            <Option value="SA">Salud</Option>
-                            <Option value="ED">Educación</Option>
-                            <Option value="OT">Otros</Option>
-                        </Select>
-                    </Form.Item>
-                )}
+                        {/* Campo Categoría (SOLO para Gastos) */}
+                        {transactionType === 'OUT' && (
+                            <FormControl isRequired id="edit-category">
+                                <FormLabel fontSize="sm" color="gray.600">Categoría</FormLabel>
+                                <Select
+                                    placeholder="Selecciona una categoría"
+                                    value={category}
+                                    onChange={(e) => setCategory(e.target.value)}
+                                    size="lg"
+                                    focusBorderColor="green.500"
+                                >
+                                    {/* Mapea las opciones de categoría */}
+                                    {expenseCategories.map((cat) => (
+                                        <option key={cat.value} value={cat.value}>{cat.label}</option>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                        )}
+                        {/* Si necesitas categoría para Ingresos, añade un Select similar aquí */}
 
-                <Form.Item
-                    name="description"
-                    label="Descripción (opcional)"
-                >
-                    <Input />
-                </Form.Item>
-            </Form>
+                        {/* Campo Descripción */}
+                        <FormControl id="edit-description">
+                            <FormLabel fontSize="sm" color="gray.600">Descripción (opcional)</FormLabel>
+                            <Input
+                                as="textarea"
+                                rows={2}
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                size="lg"
+                                focusBorderColor="green.500"
+                            />
+                        </FormControl>
+                    </Stack>
+                </ModalBody>
+
+                <ModalFooter>
+                    <Button variant='ghost' mr={3} onClick={onCancel}>
+                        Cancelar
+                    </Button>
+                    <Button colorScheme='green' onClick={handleSubmit} isLoading={loading}>
+                        Guardar Cambios
+                    </Button>
+                </ModalFooter>
+            </ModalContent>
         </Modal>
     );
 }

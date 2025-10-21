@@ -1,84 +1,19 @@
-:root {
-    --bg: #f6f7f9;
-    --ink: #1f2937;
-    --muted: #6b7280;
-    --brand: #69db7c;
-    /* verde suave */
-    --card: #ffffff;
-    --ring: rgba(16, 185, 129, .35);
-}
+/* src/styles.css (Simplified) */
 
 html,
 body,
 #root {
     height: 100%;
+    /* Optional: Add minimal global resets if needed */
+    /* line-height: 1.5; */
+    /* -webkit-font-smoothing: antialiased; */
+    /* -moz-osx-font-smoothing: grayscale; */
 }
 
 body {
     margin: 0;
-    background: var(--bg);
-    color: var(--ink);
-    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Noto Sans", "Helvetica Neue", "Apple Color Emoji", "Segoe UI Emoji";
+    /* Keep this reset */
+    /* Let Chakra handle background, color, and font */
 }
 
-.center-page {
-    min-height: calc(100vh - 80px);
-    display: grid;
-    place-items: center;
-}
-
-.login-wrapper {
-    width: min(560px, 92vw);
-    margin-inline: auto;
-    text-align: center;
-}
-
-.title {
-    margin-bottom: .25rem !important;
-}
-
-.subtitle {
-    color: var(--muted);
-    margin-top: 0 !important;
-}
-
-.card {
-    background: var(--card);
-    border-radius: 16px;
-    box-shadow: 0 6px 18px rgba(15, 23, 42, .06);
-}
-
-.tabs-title {
-    margin-bottom: 1rem !important;
-    text-align: left;
-}
-
-.btn-primary {
-    background: var(--brand) !important;
-    border-color: var(--brand) !important;
-    height: 40px;
-    font-weight: 600;
-}
-
-.pill {
-    display: inline-block;
-    font-size: 12px;
-    background: rgba(34, 197, 94, .1);
-    color: #16a34a;
-    padding: 2px 8px;
-    border-radius: 999px;
-    margin-left: 6px;
-}
-
-.page {
-    width: min(1100px, 95vw);
-    margin-inline: auto;
-}
-
-.ant-input,
-.ant-input-password,
-.ant-select-selector,
-.ant-picker,
-.ant-input-number {
-    border-radius: 10px !important;
-}
+/* Remove all other custom classes and Ant Design overrides */
