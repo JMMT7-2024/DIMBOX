@@ -1,4 +1,4 @@
-# core/urls_admin.py
+# backend/core/urls_admin.py
 from django.urls import path
 from . import admin_views as v
 
