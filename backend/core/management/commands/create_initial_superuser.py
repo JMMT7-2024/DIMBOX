@@ -5,31 +5,29 @@ from django.contrib.auth import get_user_model
 
 
 class Command(BaseCommand):
-    help = "Crea un superusuario (si no existe) usando variables de entorno"
+    help = "Crea un superusuario inicial usando variables de entorno."
 
-    def handle(self, *args, **opts):
+    def handle(self, *args, **options):
         User = get_user_model()
         username = os.environ.get("DJANGO_SUPERUSER_USERNAME", "admin")
         email = os.environ.get("DJANGO_SUPERUSER_EMAIL", "admin@example.com")
         password = os.environ.get("DJANGO_SUPERUSER_PASSWORD", "admin123")
 
-        user = User.objects.filter(username=username).first()
-        if not user:
-            user = User.objects.create_superuser(
-                username=username, email=email, password=password
-            )
-            # setear campos propios del modelo
-            try:
-                from core.models import User as CoreUser
-
-                user.role = CoreUser.Role.ADMIN
-                user.subscription = CoreUser.SubscriptionStatus.PREMIUM
-                user.save(update_fields=["role", "subscription"])
-            except Exception:
-                pass
-
-            self.stdout.write(self.style.SUCCESS(f"Superusuario '{username}' creado"))
+        user, created = User.objects.get_or_create(
+            username=username,
+            defaults={
+                "email": email,
+                "is_staff": True,
+                "is_superuser": True,
+                "is_active": True,
+                "role": "ADMIN",  # si tu CustomUser tiene role
+            },
+        )
+        if created:
+            user.set_password(password)
+            user.save()
+            self.stdout.write(self.style.SUCCESS(f"Superusuario '{username}' creado."))
         else:
             self.stdout.write(
-                self.style.WARNING(f"Superusuario '{username}' ya existe")
+                self.style.WARNING(f"Superusuario '{username}' ya existe.")
             )
