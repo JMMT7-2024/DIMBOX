@@ -1,4 +1,3 @@
-# core/permissions.py
 from rest_framework.permissions import BasePermission
 
 
@@ -15,3 +14,7 @@ class IsAdminRole(BasePermission):
         if not (u and u.is_authenticated):
             return False
         return getattr(u, "role", None) == "ADMIN" or u.is_staff or u.is_superuser
+
+
+# ⬇⬇⬇ Compatibilidad hacia atrás:
+IsAdminUser = IsAdminRole
