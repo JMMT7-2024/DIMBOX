@@ -1,8 +1,11 @@
+# backend/urls.py
 from django.contrib import admin
 from django.urls import path, include
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("api/", include("core.urls")),  # tus endpoints normales
-    path("api/admin/", include("core.urls_admin")),  # ✅ ENDPOINTS DE ADMIN
+    # API normal de tu app
+    path("api/", include("core.urls")),
+    # API de administración
+    path("api/admin/", include("core.admin_urls")),
 ]
