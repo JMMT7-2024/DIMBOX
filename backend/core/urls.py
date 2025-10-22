@@ -10,17 +10,14 @@ urlpatterns = [
     # --- Registro y Perfil ---
     path("register/", views.register, name="register"),
     path("me/", views.me, name="me"),
-    path(
-        "profile/", views.profile, name="profile"
-    ),  # <-- CORREGIDO (antes profile_view)
+    path("profile/", views.profile_view, name="profile"),  # <— AQUÍ EL CAMBIO
     # --- Transacciones ---
     path(
         "transactions/", views.transactions_list_create, name="transactions_list_create"
     ),
     path("transactions/<int:pk>/", views.transaction_detail, name="transaction_detail"),
-    # --- Export ---
     path("export/csv/", views.export_csv, name="export_csv"),
-    # --- Sondas ---
-    path("health/", views.health, name="health"),
-    path("whoami/", views.whoami, name="whoami"),
+    # --- Utilidades ---
+    path("health/", views.health),
+    path("whoami/", views.whoami),
 ]
