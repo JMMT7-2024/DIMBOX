@@ -4,6 +4,8 @@ from django.urls import path, include
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("api/", include("core.urls")),  # auth/perfil/transacciones
-    path("api/admin/", include("core.urls_admin")),  # SOLO admin panel
+    # API normal de la app (auth, perfil, transacciones, etc.)
+    path("api/", include("core.urls")),
+    # API del panel admin (solo ADMIN)
+    path("api/admin/", include("core.urls_admin")),
 ]

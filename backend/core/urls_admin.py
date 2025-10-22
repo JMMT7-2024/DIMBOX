@@ -1,11 +1,17 @@
 # core/urls_admin.py
 from django.urls import path
-from . import admin_views as views
+from .admin_views import (
+    admin_stats,
+    admin_users_list,
+    admin_set_plan,
+    admin_set_active,
+    admin_set_role,
+)
 
 urlpatterns = [
-    path("stats/", views.admin_stats, name="admin_stats"),
-    path("users/", views.admin_users_list, name="admin_users_list"),
-    path("users/<int:pk>/set-plan/", views.admin_set_plan, name="admin_set_plan"),
-    path("users/<int:pk>/set-active/", views.admin_set_active, name="admin_set_active"),
-    path("users/<int:pk>/set-role/", views.admin_set_role, name="admin_set_role"),
+    path("stats/", admin_stats),
+    path("users/", admin_users_list),
+    path("users/<int:pk>/set-plan/", admin_set_plan),
+    path("users/<int:pk>/set-active/", admin_set_active),
+    path("users/<int:pk>/set-role/", admin_set_role),
 ]
