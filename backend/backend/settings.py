@@ -1,4 +1,3 @@
-# backend/settings.py
 import os
 from pathlib import Path
 import dj_database_url  # Make sure this is imported
@@ -38,8 +37,10 @@ INSTALLED_APPS = [
     "corsheaders",
     "rest_framework",
     "rest_framework_simplejwt",
-    # Own App
+    # Own Apps
     "core",
+    # ✅ NUEVA APP: Cuentas Rápidas
+    "quick_accounts",
 ]
 
 # --------- Middleware (Ordered and Corrected!) ----------
@@ -92,6 +93,15 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
+    # ✅ CONFIGURACIÓN ADICIONAL PARA CUENTAS RÁPIDAS
+    "DEFAULT_RENDERER_CLASSES": [
+        "rest_framework.renderers.JSONRenderer",
+    ],
+    "DEFAULT_PARSER_CLASSES": [
+        "rest_framework.parsers.JSONParser",
+        "rest_framework.parsers.FormParser",
+        "rest_framework.parsers.MultiPartParser",
+    ],
 }
 
 AUTH_USER_MODEL = "core.User"
@@ -163,6 +173,21 @@ CORS_ALLOW_HEADERS = [
     "user-agent",
     "x-csrftoken",
     "x-requested-with",
+]
+
+# ✅ CONFIGURACIÓN ADICIONAL CORS PARA CUENTAS RÁPIDAS
+CORS_ALLOW_METHODS = [
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+]
+
+CORS_EXPOSE_HEADERS = [
+    "content-type",
+    "x-csrftoken",
 ]
 
 
