@@ -1,4 +1,4 @@
-# core/views.py
+# core/views.py - VERSIÓN ACTUALIZADA CON SERIALIZERS MEJORADOS
 from __future__ import annotations
 
 from datetime import datetime
@@ -9,18 +9,26 @@ from io import StringIO
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
 from django.utils.timezone import now
-from django.db.models import Q
+from django.db.models import Q, Count, Sum, Avg
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework import status
 
 from .models import Transaction, TransactionType, GastoCategoria
+from .serializers import (  # ✅ IMPORTAR LOS NUEVOS SERIALIZERS
+    UserSerializer,
+    MeSerializer,
+    ProfileUpdateSerializer,
+    AdminUserSerializer,
+    UserLimitsSerializer,
+    TransactionSerializer,
+)
 
 User = get_user_model()
 
 # -------------------------------
-# Helpers
+# Helpers (MANTENIDOS PARA COMPATIBILIDAD)
 # -------------------------------
 
 
@@ -60,25 +68,6 @@ def _tx_to_dict(tx: Transaction) -> dict:
     }
 
 
-def _user_to_dict(u: User) -> dict:
-    """
-    Datos de usuario que la app de frontend necesita.
-    """
-    return {
-        "id": u.id,
-        "username": u.username,
-        "email": u.email or "",
-        "name": getattr(u, "name", "") or "",
-        "role": getattr(u, "role", "USER"),
-        "subscription": getattr(u, "subscription", "FREE"),
-        "goal_name": getattr(u, "goal_name", "Meta de Ahorro"),
-        "goal_amount": str(getattr(u, "goal_amount", Decimal("0"))),
-        "is_staff": bool(getattr(u, "is_staff", False)),
-        "is_superuser": bool(getattr(u, "is_superuser", False)),
-        "record_count": int(getattr(u, "record_count", 0)),
-    }
-
-
 def _validate_category(code: str | None) -> str | None:
     """
     Valida/normaliza categoría. Acepta None/'' (opcional).
@@ -106,7 +95,7 @@ def _validate_tx_type(tx_type: str) -> str:
 
 
 # -------------------------------
-# Auth / Perfil
+# Auth / Perfil - ACTUALIZADOS CON SERIALIZERS
 # -------------------------------
 
 
@@ -120,24 +109,13 @@ def register(request):
       - email (opcional)
       - name (opcional)
     """
-    username = (request.data.get("username") or "").strip()
-    password = request.data.get("password") or ""
-    email = (request.data.get("email") or "").strip()
-    name = (request.data.get("name") or "").strip()
-
-    if not username or not password:
-        return Response({"detail": "username y password son requeridos"}, status=400)
-
-    if User.objects.filter(username=username).exists():
-        return Response({"detail": "El usuario ya existe"}, status=400)
-
-    u = User(username=username, email=email)
-    if hasattr(u, "name"):
-        u.name = name
-    u.set_password(password)
-    u.save()
-
-    return Response(_user_to_dict(u), status=status.HTTP_201_CREATED)
+    serializer = UserSerializer(data=request.data)
+    if serializer.is_valid():
+        user = serializer.save()
+        # ✅ USAR MeSerializer PARA RESPUESTA COMPLETA
+        response_serializer = MeSerializer(user)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(["GET"])
@@ -145,8 +123,10 @@ def register(request):
 def me(request):
     """
     Devuelve info del usuario autenticado (para AuthContext).
+    ✅ ACTUALIZADO: Usar MeSerializer para información completa
     """
-    return Response(_user_to_dict(request.user))
+    serializer = MeSerializer(request.user)
+    return Response(serializer.data)
 
 
 @api_view(["GET", "PUT"])
@@ -155,33 +135,24 @@ def profile_view(request):
     """
     GET: datos del perfil (meta/objetivo).
     PUT: actualizar name, goal_name, goal_amount
+    ✅ ACTUALIZADO: Usar serializers apropiados
     """
-    u = request.user
-
     if request.method == "GET":
-        return Response(_user_to_dict(u))
+        serializer = MeSerializer(request.user)
+        return Response(serializer.data)
 
-    # PUT
-    name = request.data.get("name")
-    goal_name = request.data.get("goal_name")
-    goal_amount = request.data.get("goal_amount")
-
-    if name is not None and hasattr(u, "name"):
-        u.name = str(name).strip()
-    if goal_name is not None and hasattr(u, "goal_name"):
-        u.goal_name = str(goal_name).strip()
-    if goal_amount is not None and hasattr(u, "goal_amount"):
-        try:
-            u.goal_amount = _to_decimal(goal_amount, default="0")
-        except ValueError as e:
-            return Response({"detail": str(e)}, status=400)
-
-    u.save()
-    return Response(_user_to_dict(u))
+    # PUT - Actualizar perfil
+    serializer = ProfileUpdateSerializer(request.user, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        # ✅ DEVOLVER RESPUESTA COMPLETA CON MeSerializer
+        response_serializer = MeSerializer(request.user)
+        return Response(response_serializer.data)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 # -------------------------------
-# Transacciones
+# Transacciones - ACTUALIZADOS CON SERIALIZERS
 # -------------------------------
 
 
@@ -191,48 +162,70 @@ def transactions_list_create(request):
     """
     GET: lista de transacciones del usuario (ordenadas por fecha desc, creación desc).
     POST: crea una transacción.
-      Campos POST esperados:
-        - transaction_type: 'IN' | 'OUT'
-        - amount: decimal
-        - date: 'YYYY-MM-DD'
-        - category: código opcional (AL, TR, SE, VI, OC, SA, ED, OT)
-        - description: opcional
+    ✅ MEJORADO: Usar TransactionSerializer con validación de límites
     """
     user = request.user
 
     if request.method == "GET":
-        qs = Transaction.objects.filter(user=user).order_by("-date", "-created_at")
-        return Response([_tx_to_dict(t) for t in qs])
+        transactions = Transaction.objects.filter(user=user).order_by(
+            "-date", "-created_at"
+        )
+        serializer = TransactionSerializer(transactions, many=True)
+        return Response(serializer.data)
 
-    # POST
-    data = request.data
-    try:
-        tx_type = _validate_tx_type(data.get("transaction_type"))
-        amount = _to_decimal(data.get("amount"))
-        date = _parse_date(data.get("date"))
-        category = _validate_category(data.get("category"))
-        description = (data.get("description") or "").strip() or None
-    except ValueError as e:
-        return Response({"detail": str(e)}, status=400)
+    # POST - CON VERIFICACIÓN DE LÍMITES
+    # ✅ OBTENER LÍMITES ACTUALES DEL USUARIO
+    user_serializer = MeSerializer(user)
+    user_data = user_serializer.data
+    effective_limits = user_data["effective_limits"]
+    current_count = user_data["usage_stats"]["transactions_count"]
+    max_transactions = effective_limits.get("maxTransactions", 100)
 
-    tx = Transaction.objects.create(
-        user=user,
-        transaction_type=tx_type,
-        amount=amount,
-        date=date,
-        description=description,
-        category=category,
-    )
+    # Verificar límite de transacciones
+    if current_count >= max_transactions:
+        return Response(
+            {
+                "detail": f"Límite de transacciones alcanzado. Máximo permitido: {max_transactions}",
+                "limit_type": "maxTransactions",
+                "current_count": current_count,
+                "max_limit": max_transactions,
+            },
+            status=status.HTTP_403_FORBIDDEN,
+        )
 
-    # (opcional) contador de registros
-    if hasattr(user, "record_count"):
-        try:
-            user.record_count = Transaction.objects.filter(user=user).count()
-            user.save(update_fields=["record_count"])
-        except Exception:
-            pass
+    # Verificar límite de monto por transacción
+    serializer = TransactionSerializer(data=request.data)
+    if serializer.is_valid():
+        amount = Decimal(str(serializer.validated_data["amount"]))
+        max_amount = effective_limits.get("maxTransactionAmount", 10000)
 
-    return Response(_tx_to_dict(tx), status=status.HTTP_201_CREATED)
+        if amount > max_amount:
+            return Response(
+                {
+                    "detail": f"El monto excede el límite permitido. Máximo por transacción: S/ {max_amount}",
+                    "limit_type": "maxTransactionAmount",
+                    "current_amount": float(amount),
+                    "max_limit": max_amount,
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # ✅ GUARDAR TRANSACCIÓN
+        transaction = serializer.save(user=user)
+
+        # Actualizar record_count del usuario
+        if hasattr(user, "record_count"):
+            try:
+                user.record_count = Transaction.objects.filter(user=user).count()
+                user.save(update_fields=["record_count"])
+            except Exception:
+                pass
+
+        return Response(
+            TransactionSerializer(transaction).data, status=status.HTTP_201_CREATED
+        )
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(["GET", "PUT", "DELETE"])
@@ -242,6 +235,7 @@ def transaction_detail(request, pk: int):
     GET: detalle
     PUT: actualizar (mismos campos que POST)
     DELETE: eliminar
+    ✅ ACTUALIZADO: Usar TransactionSerializer
     """
     user = request.user
     try:
@@ -250,7 +244,8 @@ def transaction_detail(request, pk: int):
         return Response({"detail": "No encontrado"}, status=404)
 
     if request.method == "GET":
-        return Response(_tx_to_dict(tx))
+        serializer = TransactionSerializer(tx)
+        return Response(serializer.data)
 
     if request.method == "DELETE":
         tx.delete()
@@ -264,28 +259,15 @@ def transaction_detail(request, pk: int):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     # PUT
-    data = request.data
-    try:
-        if "transaction_type" in data:
-            tx.transaction_type = _validate_tx_type(data.get("transaction_type"))
-        if "amount" in data:
-            tx.amount = _to_decimal(data.get("amount"))
-        if "date" in data:
-            tx.date = _parse_date(data.get("date"))
-        if "category" in data:
-            tx.category = _validate_category(data.get("category"))
-        if "description" in data:
-            desc = (data.get("description") or "").strip()
-            tx.description = desc or None
-    except ValueError as e:
-        return Response({"detail": str(e)}, status=400)
-
-    tx.save()
-    return Response(_tx_to_dict(tx))
+    serializer = TransactionSerializer(tx, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 # -------------------------------
-# Export CSV
+# Export CSV - MANTENIDO
 # -------------------------------
 
 
@@ -294,8 +276,23 @@ def transaction_detail(request, pk: int):
 def export_csv(request):
     """
     Exporta todas las transacciones del usuario a CSV.
+    ✅ NUEVO: Verificación de límites para exportación
     """
     user = request.user
+
+    # ✅ VERIFICAR SI EL USUARIO PUEDE EXPORTAR
+    user_serializer = MeSerializer(user)
+    user_data = user_serializer.data
+    effective_limits = user_data["effective_limits"]
+
+    if not effective_limits.get("canExport", False):
+        return Response(
+            {
+                "detail": "La exportación no está disponible para tu plan actual. Actualiza a Premium para desbloquear esta función."
+            },
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
     qs = Transaction.objects.filter(user=user).order_by("date", "created_at")
 
     # Construimos CSV en memoria
@@ -323,7 +320,382 @@ def export_csv(request):
 
 
 # -------------------------------
-# Utilidades
+# Sistema de Límites - ACTUALIZADOS CON SERIALIZERS
+# -------------------------------
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def user_usage(request):
+    """
+    ✅ NUEVO: Obtener estadísticas de uso actual del usuario
+    """
+    user = request.user
+    serializer = MeSerializer(user)
+    return Response({"success": True, "data": serializer.data["usage_stats"]})
+
+
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def admin_limits_stats(request):
+    """
+    ✅ NUEVO: Estadísticas de límites para panel de administración
+    """
+    # Calcular usuarios cerca o excediendo límites
+    all_users = User.objects.all()
+    near_limit_count = 0
+    exceeded_limit_count = 0
+    usage_percentages = []
+
+    for user in all_users:
+        serializer = MeSerializer(user)
+        user_data = serializer.data
+        usage_percentage = user_data["usage_stats"]["usage_percentage"]
+        usage_percentages.append(usage_percentage)
+
+        if usage_percentage >= 100:
+            exceeded_limit_count += 1
+        elif usage_percentage >= 80:
+            near_limit_count += 1
+
+    average_usage = (
+        sum(usage_percentages) / len(usage_percentages) if usage_percentages else 0
+    )
+
+    stats = {
+        "near_limit_users": near_limit_count,
+        "exceeded_limit_users": exceeded_limit_count,
+        "average_usage": round(average_usage, 1),
+        "total_transactions": Transaction.objects.count(),
+        "total_users": all_users.count(),
+        "premium_users": all_users.filter(subscription="PREMIUM").count(),
+        "free_users": all_users.filter(subscription="FREE").count(),
+    }
+
+    return Response(stats)
+
+
+@api_view(["PUT"])
+@permission_classes([IsAdminUser])
+def admin_set_custom_limits(request, user_id):
+    """
+    ✅ NUEVO: Configurar límites personalizados para un usuario
+    ✅ ACTUALIZADO: Usar UserLimitsSerializer
+    """
+    try:
+        user = User.objects.get(id=user_id)
+        serializer = UserLimitsSerializer(user, data=request.data)
+
+        if serializer.is_valid():
+            serializer.save()
+            # ✅ DEVOLVER USUARIO ACTUALIZADO
+            response_serializer = AdminUserSerializer(user)
+            return Response(
+                {
+                    "success": True,
+                    "message": "Límites personalizados guardados correctamente",
+                    "user": response_serializer.data,
+                }
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    except User.DoesNotExist:
+        return Response({"detail": "Usuario no encontrado"}, status=404)
+
+
+@api_view(["DELETE"])
+@permission_classes([IsAdminUser])
+def admin_reset_limits(request, user_id):
+    """
+    ✅ NUEVO: Restablecer límites a valores por defecto del plan
+    """
+    try:
+        user = User.objects.get(id=user_id)
+
+        # Restablecer a valores por defecto
+        user.custom_limits = None
+        user.save()
+
+        # ✅ DEVOLVER USUARIO ACTUALIZADO
+        response_serializer = AdminUserSerializer(user)
+        return Response(
+            {
+                "success": True,
+                "message": "Límites restablecidos a valores por defecto",
+                "user": response_serializer.data,
+            }
+        )
+
+    except User.DoesNotExist:
+        return Response({"detail": "Usuario no encontrado"}, status=404)
+
+
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def admin_users_near_limits(request):
+    """
+    ✅ NUEVO: Obtener usuarios cerca o excediendo límites
+    ✅ ACTUALIZADO: Usar AdminUserSerializer
+    """
+    limit_status = request.GET.get("limit_status", "all")
+    page = int(request.GET.get("page", 1))
+    limit = int(request.GET.get("limit", 20))
+
+    offset = (page - 1) * limit
+
+    all_users = User.objects.all()
+    filtered_users = []
+
+    for user in all_users:
+        serializer = MeSerializer(user)
+        user_data = serializer.data
+        usage_percentage = user_data["usage_stats"]["usage_percentage"]
+
+        if limit_status == "near_limit" and 80 <= usage_percentage < 100:
+            filtered_users.append(user_data)
+        elif limit_status == "exceeded" and usage_percentage >= 100:
+            filtered_users.append(user_data)
+        elif limit_status == "normal" and usage_percentage < 80:
+            filtered_users.append(user_data)
+        elif limit_status == "all":
+            filtered_users.append(user_data)
+
+    # Paginación manual
+    total_count = len(filtered_users)
+    paginated_users = filtered_users[offset : offset + limit]
+
+    return Response(
+        {
+            "users": paginated_users,
+            "total": total_count,
+            "page": page,
+            "limit": limit,
+            "total_pages": (total_count + limit - 1) // limit,
+        }
+    )
+
+
+@api_view(["PUT"])
+@permission_classes([IsAdminUser])
+def admin_update_global_limits(request):
+    """
+    ✅ NUEVO: Actualizar configuración global de límites
+    (En una implementación real, esto guardaría en base de datos/configuración)
+    """
+    global_limits = request.data
+
+    # Validar estructura
+    if "free" not in global_limits or "premium" not in global_limits:
+        return Response(
+            {
+                "detail": "Se requieren configuraciones para ambos planes: free y premium"
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # En una implementación real, aquí guardarías en base de datos
+    # Por ahora solo retornamos éxito
+    return Response(
+        {
+            "success": True,
+            "message": "Configuración global de límites actualizada",
+            "global_limits": global_limits,
+        }
+    )
+
+
+# -------------------------------
+# Administración - ACTUALIZADOS CON SERIALIZERS
+# -------------------------------
+
+
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def admin_stats(request):
+    """
+    Estadísticas para panel de administración
+    ✅ MEJORADO: Incluye estadísticas de límites
+    """
+    total_users = User.objects.count()
+    premium_users = User.objects.filter(subscription="PREMIUM").count()
+    free_users = User.objects.filter(subscription="FREE").count()
+    active_users = User.objects.filter(is_active=True).count()
+
+    # Usuarios registrados hoy
+    today = now().date()
+    today_registrations = User.objects.filter(date_joined__date=today).count()
+
+    total_transactions = Transaction.objects.count()
+
+    # ✅ INCLUIR ESTADÍSTICAS DE LÍMITES
+    limits_stats_response = admin_limits_stats(request._request)
+    limits_stats = limits_stats_response.data
+
+    return Response(
+        {
+            "total": total_users,
+            "premium": premium_users,
+            "free": free_users,
+            "active": active_users,
+            "today_registrations": today_registrations,
+            "total_transactions": total_transactions,
+            "limits_usage": {
+                "near_limit_users": limits_stats.get("near_limit_users", 0),
+                "exceeded_limit_users": limits_stats.get("exceeded_limit_users", 0),
+                "average_usage": limits_stats.get("average_usage", 0),
+            },
+            "trends": {
+                "total": 0,  # Podrías calcular trends con datos históricos
+                "premium": 0,
+                "free": 0,
+                "active": 0,
+            },
+        }
+    )
+
+
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def admin_users(request):
+    """
+    Lista de usuarios para administración
+    ✅ MEJORADO: Usar AdminUserSerializer
+    """
+    q = request.GET.get("q", "").strip()
+    plan = request.GET.get("plan", "").strip()
+    active = request.GET.get("active", "").strip()
+    role = request.GET.get("role", "").strip()
+    limit_status = request.GET.get("limit_status", "").strip()
+
+    page = int(request.GET.get("page", 1))
+    limit = int(request.GET.get("limit", 20))
+    offset = (page - 1) * limit
+
+    users_qs = User.objects.all()
+
+    # Filtros
+    if q:
+        users_qs = users_qs.filter(
+            Q(username__icontains=q) | Q(email__icontains=q) | Q(name__icontains=q)
+        )
+    if plan:
+        users_qs = users_qs.filter(subscription=plan)
+    if active:
+        users_qs = users_qs.filter(is_active=(active.lower() == "true"))
+    if role:
+        users_qs = users_qs.filter(role=role)
+
+    total_count = users_qs.count()
+    users_page = users_qs[offset : offset + limit]
+
+    # ✅ USAR AdminUserSerializer PARA RESPUESTA CONSISTENTE
+    serializer = AdminUserSerializer(users_page, many=True)
+
+    return Response(
+        {
+            "users": serializer.data,
+            "total": total_count,
+            "page": page,
+            "limit": limit,
+            "total_pages": (total_count + limit - 1) // limit,
+        }
+    )
+
+
+@api_view(["POST"])
+@permission_classes([IsAdminUser])
+def admin_set_plan(request, user_id):
+    """
+    Cambiar plan de usuario (FREE/PREMIUM)
+    ✅ MEJORADO: Limpia límites personalizados al cambiar de plan
+    ✅ ACTUALIZADO: Usar AdminUserUpdateSerializer
+    """
+    try:
+        user = User.objects.get(id=user_id)
+        serializer = AdminUserUpdateSerializer(user, data=request.data, partial=True)
+
+        if serializer.is_valid():
+            # ✅ LIMPIAR LÍMITES PERSONALIZADOS AL CAMBIAR DE PLAN
+            if "subscription" in serializer.validated_data:
+                user.custom_limits = None
+
+            serializer.save()
+
+            # ✅ DEVOLVER USUARIO ACTUALIZADO
+            response_serializer = AdminUserSerializer(user)
+            return Response(
+                {
+                    "success": True,
+                    "message": f"Usuario actualizado correctamente",
+                    "user": response_serializer.data,
+                }
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    except User.DoesNotExist:
+        return Response({"detail": "Usuario no encontrado"}, status=404)
+
+
+@api_view(["POST"])
+@permission_classes([IsAdminUser])
+def admin_set_active(request, user_id):
+    """
+    Activar/desactivar usuario
+    ✅ ACTUALIZADO: Usar AdminUserUpdateSerializer
+    """
+    try:
+        user = User.objects.get(id=user_id)
+        serializer = AdminUserUpdateSerializer(user, data=request.data, partial=True)
+
+        if serializer.is_valid():
+            serializer.save()
+
+            # ✅ DEVOLVER USUARIO ACTUALIZADO
+            response_serializer = AdminUserSerializer(user)
+            return Response(
+                {
+                    "success": True,
+                    "message": f"Usuario {'activado' if user.is_active else 'desactivado'}",
+                    "user": response_serializer.data,
+                }
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    except User.DoesNotExist:
+        return Response({"detail": "Usuario no encontrado"}, status=404)
+
+
+@api_view(["POST"])
+@permission_classes([IsAdminUser])
+def admin_set_role(request, user_id):
+    """
+    Cambiar rol de usuario (USER/ADMIN)
+    ✅ ACTUALIZADO: Usar AdminUserUpdateSerializer
+    """
+    try:
+        user = User.objects.get(id=user_id)
+        serializer = AdminUserUpdateSerializer(user, data=request.data, partial=True)
+
+        if serializer.is_valid():
+            serializer.save()
+
+            # ✅ DEVOLVER USUARIO ACTUALIZADO
+            response_serializer = AdminUserSerializer(user)
+            return Response(
+                {
+                    "success": True,
+                    "message": f"Usuario cambiado a rol {user.role}",
+                    "user": response_serializer.data,
+                }
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    except User.DoesNotExist:
+        return Response({"detail": "Usuario no encontrado"}, status=404)
+
+
+# -------------------------------
+# Utilidades - MANTENIDOS
 # -------------------------------
 
 

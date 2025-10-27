@@ -1,7 +1,8 @@
-# core/admin.py
+# core/admin.py - VERSIÓN ACTUALIZADA CON SISTEMA DE LÍMITES
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
-from .models import User, Transaction  # <-- solo estos dos
+from django.utils.html import format_html
+from .models import User, Transaction
 
 
 # --- Admin del usuario personalizado ---
@@ -14,6 +15,7 @@ class UserAdmin(DjangoUserAdmin):
         "name",
         "role",
         "subscription",
+        "usage_display",  # ✅ NUEVO: Mostrar uso
         "is_active",
         "is_staff",
         "is_superuser",
@@ -23,11 +25,30 @@ class UserAdmin(DjangoUserAdmin):
     search_fields = ("username", "email", "name", "goal_name")
     ordering = ("id",)
 
+    # ✅ NUEVO: Campos de solo lectura para estadísticas
+    readonly_fields = (
+        "record_count",
+        "usage_stats_display",
+        "effective_limits_display",
+        "last_login",
+        "date_joined",
+    )
+
     fieldsets = (
         (None, {"fields": ("username", "password")}),
         ("Información personal", {"fields": ("email", "name")}),
         ("Meta de ahorro", {"fields": ("goal_name", "goal_amount")}),
         ("Gestión", {"fields": ("subscription", "role", "record_count")}),
+        (
+            "✅ Sistema de Límites",  # ✅ NUEVO: Sección para límites
+            {
+                "fields": (
+                    "custom_limits",
+                    "usage_stats_display",
+                    "effective_limits_display",
+                )
+            },
+        ),
         (
             "Permisos",
             {
@@ -42,6 +63,7 @@ class UserAdmin(DjangoUserAdmin):
         ),
         ("Fechas importantes", {"fields": ("last_login", "date_joined")}),
     )
+
     add_fieldsets = (
         (
             None,
@@ -61,6 +83,124 @@ class UserAdmin(DjangoUserAdmin):
         ),
     )
 
+    # ✅ NUEVO: Método para mostrar uso en listado
+    def usage_display(self, obj):
+        """Muestra el porcentaje de uso en la lista de usuarios"""
+        usage_stats = obj.usage_stats
+        percentage = usage_stats["usage_percentage"]
+        transactions_count = usage_stats["transactions_count"]
+
+        # Color según el porcentaje de uso
+        if percentage >= 100:
+            color = "red"
+            status = "❌ EXCEDIDO"
+        elif percentage >= 80:
+            color = "orange"
+            status = "⚠️ CERCA"
+        else:
+            color = "green"
+            status = "✅ OK"
+
+        return format_html(
+            '<span style="color: {};">{} ({}/{} - {}%)</span>',
+            color,
+            status,
+            transactions_count,
+            obj.effective_limits.get("maxTransactions", 100),
+            percentage,
+        )
+
+    usage_display.short_description = "Uso de Límites"
+    usage_display.admin_order_field = "record_count"
+
+    # ✅ NUEVO: Método para mostrar estadísticas de uso en detalle
+    def usage_stats_display(self, obj):
+        """Muestra estadísticas detalladas de uso"""
+        usage_stats = obj.usage_stats
+        limits = obj.effective_limits
+
+        return format_html(
+            """
+            <div style="background: #f8f9fa; padding: 10px; border-radius: 5px;">
+                <strong>📊 Estadísticas de Uso:</strong><br>
+                • Transacciones: {count} / {max_tx} ({percentage}%)<br>
+                • Monto total: S/ {amount:,.2f}<br>
+                • Límite por transacción: S/ {max_amount:,.2f}<br>
+                • Puede exportar: {can_export}<br>
+                • Análisis avanzado: {can_analytics}
+            </div>
+            """,
+            count=usage_stats["transactions_count"],
+            max_tx=limits.get("maxTransactions", 100),
+            percentage=usage_stats["usage_percentage"],
+            amount=usage_stats["total_amount"],
+            max_amount=limits.get("maxTransactionAmount", 10000),
+            can_export="✅ Sí" if limits.get("canExport", False) else "❌ No",
+            can_analytics="✅ Sí"
+            if limits.get("canAdvancedAnalytics", False)
+            else "❌ No",
+        )
+
+    usage_stats_display.short_description = "Estadísticas de Uso"
+
+    # ✅ NUEVO: Método para mostrar límites efectivos
+    def effective_limits_display(self, obj):
+        """Muestra los límites efectivos del usuario"""
+        limits = obj.effective_limits
+        plan_type = "PREMIUM 🚀" if obj.subscription == "PREMIUM" else "FREE"
+        limits_source = "Personalizados ⚙️" if obj.custom_limits else "Por defecto 📋"
+
+        return format_html(
+            """
+            <div style="background: #e8f4fd; padding: 10px; border-radius: 5px;">
+                <strong>🎯 Límites Efectivos:</strong><br>
+                • Plan: {plan} ({source})<br>
+                • Transacciones máx: {max_tx}<br>
+                • Monto máx/transacción: S/ {max_amount:,.2f}<br>
+                • Cuentas rápidas: {max_accounts}<br>
+                • Categorías: {max_categories}<br>
+                • Retención: {retention} meses<br>
+                • Exportación: {export}<br>
+                • Análisis avanzado: {analytics}
+            </div>
+            """,
+            plan=plan_type,
+            source=limits_source,
+            max_tx=limits.get("maxTransactions", 100),
+            max_amount=limits.get("maxTransactionAmount", 10000),
+            max_accounts=limits.get("maxQuickAccounts", 3),
+            max_categories=limits.get("maxCategories", 8),
+            retention=limits.get("retentionMonths", 3),
+            export="✅ Sí" if limits.get("canExport", False) else "❌ No",
+            analytics="✅ Sí" if limits.get("canAdvancedAnalytics", False) else "❌ No",
+        )
+
+    effective_limits_display.short_description = "Límites Efectivos"
+
+    # ✅ NUEVO: Acciones personalizadas
+    actions = ["upgrade_to_premium", "downgrade_to_free", "reset_limits"]
+
+    def upgrade_to_premium(self, request, queryset):
+        """Actualizar usuarios seleccionados a Premium"""
+        updated = queryset.update(subscription="PREMIUM")
+        self.message_user(request, f"✅ {updated} usuarios actualizados a PREMIUM")
+
+    upgrade_to_premium.short_description = "🔄 Actualizar a PREMIUM"
+
+    def downgrade_to_free(self, request, queryset):
+        """Actualizar usuarios seleccionados a Free"""
+        updated = queryset.update(subscription="FREE")
+        self.message_user(request, f"✅ {updated} usuarios actualizados a FREE")
+
+    downgrade_to_free.short_description = "🔄 Actualizar a FREE"
+
+    def reset_limits(self, request, queryset):
+        """Restablecer límites personalizados a valores por defecto"""
+        updated = queryset.update(custom_limits=None)
+        self.message_user(request, f"✅ Límites restablecidos para {updated} usuarios")
+
+    reset_limits.short_description = "🔄 Restablecer límites personalizados"
+
 
 # --- Admin de transacciones ---
 @admin.register(Transaction)
@@ -68,13 +208,133 @@ class TransactionAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "user",
-        "transaction_type",
-        "amount",
-        "category",
+        "transaction_type_display",  # ✅ MEJORADO: Con iconos
+        "amount_display",  # ✅ MEJORADO: Formato moneda
+        "category_display",  # ✅ MEJORADO: Con colores
         "date",
-        "created_at",
+        "days_ago",  # ✅ NUEVO: Días desde la transacción
     )
-    list_filter = ("transaction_type", "category", "date")
+    list_filter = ("transaction_type", "category", "date", "user")
     search_fields = ("description", "user__username", "user__email")
     autocomplete_fields = ("user",)
     date_hierarchy = "date"
+    list_per_page = 50
+
+    # ✅ NUEVO: Campos de solo lectura
+    readonly_fields = ("created_at", "days_ago_display")
+
+    fieldsets = (
+        (None, {"fields": ("user", "transaction_type", "amount", "date")}),
+        ("Detalles", {"fields": ("category", "description")}),
+        (
+            "Metadatos",
+            {"fields": ("created_at", "days_ago_display"), "classes": ("collapse",)},
+        ),
+    )
+
+    # ✅ NUEVO: Método para mostrar tipo de transacción con iconos
+    def transaction_type_display(self, obj):
+        if obj.transaction_type == "IN":
+            return format_html('<span style="color: green;">📥 INGRESO</span>')
+        else:
+            return format_html('<span style="color: red;">📤 GASTO</span>')
+
+    transaction_type_display.short_description = "Tipo"
+    transaction_type_display.admin_order_field = "transaction_type"
+
+    # ✅ NUEVO: Método para mostrar monto formateado
+    def amount_display(self, obj):
+        color = "green" if obj.transaction_type == "IN" else "red"
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">S/ {:,.2f}</span>',
+            color,
+            float(obj.amount),
+        )
+
+    amount_display.short_description = "Monto"
+    amount_display.admin_order_field = "amount"
+
+    # ✅ NUEVO: Método para mostrar categoría con colores
+    def category_display(self, obj):
+        if not obj.category:
+            return format_html('<span style="color: #666;">—</span>')
+
+        category_colors = {
+            "AL": "#48BB78",
+            "TR": "#4299E1",
+            "SE": "#ED8936",
+            "VI": "#9F7AEA",
+            "OC": "#F56565",
+            "SA": "#38B2AC",
+            "ED": "#ECC94B",
+            "OT": "#A0AEC0",
+        }
+
+        category_names = {
+            "AL": "Alimentación",
+            "TR": "Transporte",
+            "SE": "Servicios",
+            "VI": "Vivienda",
+            "OC": "Ocio",
+            "SA": "Salud",
+            "ED": "Educación",
+            "OT": "Otros",
+        }
+
+        color = category_colors.get(obj.category, "#A0AEC0")
+        name = category_names.get(obj.category, obj.category)
+
+        return format_html(
+            '<span style="color: {}; background: {}20; padding: 2px 6px; border-radius: 3px; font-size: 11px;">{}</span>',
+            color,
+            color,
+            name,
+        )
+
+    category_display.short_description = "Categoría"
+    category_display.admin_order_field = "category"
+
+    # ✅ NUEVO: Método para mostrar días desde la transacción
+    def days_ago(self, obj):
+        from django.utils.timezone import now
+
+        delta = now().date() - obj.date
+        days = delta.days
+
+        if days == 0:
+            return "Hoy"
+        elif days == 1:
+            return "Ayer"
+        elif days < 7:
+            return f"{days}d"
+        elif days < 30:
+            weeks = days // 7
+            return f"{weeks}sem"
+        else:
+            months = days // 30
+            return f"{months}m"
+
+    days_ago.short_description = "Hace"
+    days_ago.admin_order_field = "date"
+
+    # ✅ NUEVO: Método para detalle
+    def days_ago_display(self, obj):
+        from django.utils.timezone import now
+
+        delta = now().date() - obj.date
+        return f"{delta.days} días ({obj.date})"
+
+    days_ago_display.short_description = "Días desde transacción"
+
+
+# ✅ NUEVO: Panel personalizado para el admin
+class CustomAdminSite(admin.AdminSite):
+    site_header = "🏦 FinanzApp - Administración"
+    site_title = "FinanzApp Admin"
+    index_title = "Dashboard de Administración"
+
+
+# ✅ Registrar modelos con el admin site personalizado si es necesario
+# admin_site = CustomAdminSite(name='custom_admin')
+# admin_site.register(User, UserAdmin)
+# admin_site.register(Transaction, TransactionAdmin)
