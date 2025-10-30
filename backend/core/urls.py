@@ -1,17 +1,19 @@
-# core/urls.py - VERSIÓN COMPLETA CORREGIDA CON PASSWORD RESET
+# core/urls.py - VERSIÓN COMPLETAMENTE CORREGIDA
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from . import views
-from . import admin_views  # ✅ IMPORTAR ADMIN_VIEWS
+from . import admin_views
 
 urlpatterns = [
     # -------------------------------
-    # Autenticación JWT
+    # Autenticación JWT - CORREGIDO
     # -------------------------------
     path("token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
-    path("token/refresh/", TokenRefreshView.asview(), name="token_refresh"),
+    path(
+        "token/refresh/", TokenRefreshView.as_view(), name="token_refresh"
+    ),  # ✅ CORREGIDO: as_view()
     # -------------------------------
-    # ✅ RECUPERACIÓN DE CONTRASEÑAS - NUEVO ENDPOINT
+    # ✅ RECUPERACIÓN DE CONTRASEÑAS
     # -------------------------------
     path(
         "password/reset/",
@@ -41,11 +43,9 @@ urlpatterns = [
     # -------------------------------
     path("export/csv/", views.export_csv, name="export_csv"),
     # -------------------------------
-    # ✅ SISTEMA DE LÍMITES - NUEVOS ENDPOINTS
+    # ✅ SISTEMA DE LÍMITES
     # -------------------------------
-    # Límites del usuario actual
     path("user/usage/", views.user_usage, name="user-usage"),
-    # Administración de límites
     path("admin/limits/stats/", views.admin_limits_stats, name="admin-limits-stats"),
     path(
         "admin/users/<int:user_id>/limits/",
@@ -68,25 +68,23 @@ urlpatterns = [
         name="admin-update-global-limits",
     ),
     # -------------------------------
-    # Administración de usuarios (CORREGIDO)
+    # Administración de usuarios
     # -------------------------------
     path("admin/stats/", admin_views.admin_stats, name="admin-stats"),
-    path(
-        "admin/users/", admin_views.admin_users_list, name="admin-users"
-    ),  # ✅ Corregido nombre
+    path("admin/users/", admin_views.admin_users_list, name="admin-users"),
     path(
         "admin/users/<int:user_id>/set-plan/",
-        admin_views.admin_set_plan,  # ✅ Desde admin_views
+        admin_views.admin_set_plan,
         name="admin-set-plan",
     ),
     path(
         "admin/users/<int:user_id>/set-active/",
-        admin_views.admin_set_active,  # ✅ Desde admin_views
+        admin_views.admin_set_active,
         name="admin-set-active",
     ),
     path(
         "admin/users/<int:user_id>/set-role/",
-        admin_views.admin_set_role,  # ✅ Desde admin_views
+        admin_views.admin_set_role,
         name="admin-set-role",
     ),
     # -------------------------------
