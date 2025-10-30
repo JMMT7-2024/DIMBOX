@@ -5,6 +5,8 @@ from decimal import Decimal, InvalidOperation
 import csv
 from io import StringIO
 import re
+from django.db import models
+from django.db.models import Sum, Count
 
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
@@ -870,5 +872,367 @@ def whoami(request):
             "role": getattr(u, "role", "USER"),
             "is_staff": bool(getattr(u, "is_staff", False)),
             "is_superuser": bool(getattr(u, "is_superuser", False)),
+        }
+    )
+
+
+# -------------------------------
+# ✅ VISTAS EMPRESARIALES - PRODUCTOS E INVOICES
+# -------------------------------
+
+from .models import Product, Invoice, InvoiceItem
+from .serializers import (
+    ProductSerializer,
+    ProductListSerializer,
+    InvoiceSerializer,
+    InvoiceCreateSerializer,
+    InvoiceItemSerializer,
+)
+
+
+# 📦 VISTAS DE PRODUCTOS
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def products_list_create(request):
+    """
+    GET: Lista todos los productos del usuario
+    POST: Crea un nuevo producto
+    """
+    user = request.user
+
+    if request.method == "GET":
+        # Filtros opcionales
+        category = request.GET.get("category", "")
+        is_active = request.GET.get("is_active", "")
+
+        products = Product.objects.filter(user=user)
+
+        if category:
+            products = products.filter(category=category)
+        if is_active.lower() == "true":
+            products = products.filter(is_active=True)
+        elif is_active.lower() == "false":
+            products = products.filter(is_active=False)
+
+        products = products.order_by("-created_at")
+        serializer = ProductListSerializer(products, many=True)
+        return Response(serializer.data)
+
+    # POST - Crear producto
+    serializer = ProductSerializer(data=request.data, context={"request": request})
+    if serializer.is_valid():
+        product = serializer.save()
+        response_serializer = ProductSerializer(product)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(["GET", "PUT", "DELETE"])
+@permission_classes([IsAuthenticated])
+def product_detail(request, pk):
+    """
+    GET: Obtener detalle de producto
+    PUT: Actualizar producto
+    DELETE: Eliminar producto (soft delete)
+    """
+    user = request.user
+    try:
+        product = Product.objects.get(id=pk, user=user)
+    except Product.DoesNotExist:
+        return Response(
+            {"detail": "Producto no encontrado"}, status=status.HTTP_404_NOT_FOUND
+        )
+
+    if request.method == "GET":
+        serializer = ProductSerializer(product)
+        return Response(serializer.data)
+
+    elif request.method == "PUT":
+        serializer = ProductSerializer(
+            product, data=request.data, partial=True, context={"request": request}
+        )
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == "DELETE":
+        # Soft delete - marcar como inactivo
+        product.is_active = False
+        product.save()
+        return Response(
+            {"detail": "Producto eliminado correctamente"}, status=status.HTTP_200_OK
+        )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def products_stats(request):
+    """Estadísticas de productos del usuario"""
+    user = request.user
+    total_products = Product.objects.filter(user=user).count()
+    active_products = Product.objects.filter(user=user, is_active=True).count()
+    low_stock_products = Product.objects.filter(
+        user=user, stock__lte=5, stock__gt=0
+    ).count()
+    out_of_stock_products = Product.objects.filter(user=user, stock=0).count()
+
+    # Valor total del inventario
+    inventory_value = (
+        Product.objects.filter(user=user, is_active=True).aggregate(
+            total_value=models.Sum(models.F("price") * models.F("stock"))
+        )["total_value"]
+        or 0
+    )
+
+    # Productos por categoría
+    by_category = (
+        Product.objects.filter(user=user, is_active=True)
+        .values("category")
+        .annotate(
+            count=models.Count("id"),
+            total_value=models.Sum(models.F("price") * models.F("stock")),
+        )
+    )
+
+    return Response(
+        {
+            "total_products": total_products,
+            "active_products": active_products,
+            "low_stock_products": low_stock_products,
+            "out_of_stock_products": out_of_stock_products,
+            "inventory_value": float(inventory_value),
+            "by_category": list(by_category),
+        }
+    )
+
+
+# 🧾 VISTAS DE FACTURAS (INVOICES)
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def invoices_list_create(request):
+    """
+    GET: Lista todas las facturas del usuario
+    POST: Crea una nueva factura
+    """
+    user = request.user
+
+    if request.method == "GET":
+        # Filtros opcionales
+        status_filter = request.GET.get("status", "")
+        date_from = request.GET.get("date_from", "")
+        date_to = request.GET.get("date_to", "")
+
+        invoices = Invoice.objects.filter(user=user)
+
+        if status_filter:
+            invoices = invoices.filter(status=status_filter)
+        if date_from:
+            invoices = invoices.filter(issue_date__gte=date_from)
+        if date_to:
+            invoices = invoices.filter(issue_date__lte=date_to)
+
+        invoices = invoices.order_by("-issue_date", "-created_at")
+        serializer = InvoiceSerializer(invoices, many=True)
+        return Response(serializer.data)
+
+    # POST - Crear factura
+    serializer = InvoiceSerializer(data=request.data, context={"request": request})
+    if serializer.is_valid():
+        invoice = serializer.save()
+        response_serializer = InvoiceSerializer(invoice)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def invoices_quick_create(request):
+    """
+    Creación rápida de factura desde datos simplificados
+    """
+    serializer = InvoiceCreateSerializer(
+        data=request.data, context={"request": request}
+    )
+    if serializer.is_valid():
+        invoice = serializer.save()
+        response_serializer = InvoiceSerializer(invoice)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(["GET", "PUT", "DELETE"])
+@permission_classes([IsAuthenticated])
+def invoice_detail(request, pk):
+    """
+    GET: Obtener detalle de factura
+    PUT: Actualizar factura
+    DELETE: Eliminar factura
+    """
+    user = request.user
+    try:
+        invoice = Invoice.objects.get(id=pk, user=user)
+    except Invoice.DoesNotExist:
+        return Response(
+            {"detail": "Factura no encontrada"}, status=status.HTTP_404_NOT_FOUND
+        )
+
+    if request.method == "GET":
+        serializer = InvoiceSerializer(invoice)
+        return Response(serializer.data)
+
+    elif request.method == "PUT":
+        serializer = InvoiceSerializer(
+            invoice, data=request.data, partial=True, context={"request": request}
+        )
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == "DELETE":
+        invoice.delete()
+        return Response(
+            {"detail": "Factura eliminada correctamente"},
+            status=status.HTTP_204_NO_CONTENT,
+        )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def invoice_update_status(request, pk):
+    """
+    Actualizar estado de una factura
+    """
+    user = request.user
+    try:
+        invoice = Invoice.objects.get(id=pk, user=user)
+    except Invoice.DoesNotExist:
+        return Response(
+            {"detail": "Factura no encontrada"}, status=status.HTTP_404_NOT_FOUND
+        )
+
+    new_status = request.data.get("status")
+    if not new_status:
+        return Response(
+            {"detail": "El campo 'status' es requerido"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Validar estado
+    valid_statuses = [choice[0] for choice in Invoice.STATUS_CHOICES]
+    if new_status not in valid_statuses:
+        return Response(
+            {"detail": f"Estado inválido. Debe ser: {', '.join(valid_statuses)}"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    invoice.status = new_status
+
+    # Si se marca como pagada, establecer fecha de pago
+    if new_status == "PAID" and not invoice.paid_date:
+        from django.utils import timezone
+
+        invoice.paid_date = timezone.now().date()
+
+    invoice.save()
+
+    serializer = InvoiceSerializer(invoice)
+    return Response(serializer.data)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def invoices_stats(request):
+    """Estadísticas de facturas del usuario"""
+    user = request.user
+    from django.db.models import Sum, Count
+    from django.utils import timezone
+    from datetime import timedelta
+
+    # Totales generales
+    total_invoices = Invoice.objects.filter(user=user).count()
+    total_amount = (
+        Invoice.objects.filter(user=user).aggregate(total=Sum("total"))["total"] or 0
+    )
+
+    # Por estado
+    by_status = (
+        Invoice.objects.filter(user=user)
+        .values("status")
+        .annotate(count=Count("id"), amount=Sum("total"))
+    )
+
+    # Facturas vencidas
+    overdue_invoices = Invoice.objects.filter(
+        user=user,
+        status="SENT",
+        due_date__lt=timezone.now().date(),
+        paid_date__isnull=True,
+    ).count()
+
+    # Facturas del mes actual
+    current_month = timezone.now().date().replace(day=1)
+    next_month = current_month + timedelta(days=32)
+    next_month = next_month.replace(day=1)
+
+    monthly_invoices = Invoice.objects.filter(
+        user=user, issue_date__gte=current_month, issue_date__lt=next_month
+    ).aggregate(count=Count("id"), amount=Sum("total"))
+
+    return Response(
+        {
+            "total_invoices": total_invoices,
+            "total_amount": float(total_amount),
+            "overdue_invoices": overdue_invoices,
+            "monthly_stats": {
+                "count": monthly_invoices["count"] or 0,
+                "amount": float(monthly_invoices["amount"] or 0),
+            },
+            "by_status": list(by_status),
+        }
+    )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def enterprise_dashboard(request):
+    """Dashboard empresarial con resumen de productos y facturas"""
+    user = request.user
+
+    # Obtener stats de productos
+    products_stats_data = products_stats(request._request).data
+
+    # Obtener stats de facturas
+    invoices_stats_data = invoices_stats(request._request).data
+
+    # Clientes únicos
+    unique_clients = (
+        Invoice.objects.filter(user=user).values("client_name").distinct().count()
+    )
+
+    # Productos más vendidos
+    top_products = (
+        InvoiceItem.objects.filter(invoice__user=user)
+        .values("product__name")
+        .annotate(
+            total_sold=Sum("quantity"),
+            total_revenue=Sum(models.F("unit_price") * models.F("quantity")),
+        )
+        .order_by("-total_sold")[:5]
+    )
+
+    return Response(
+        {
+            "products": products_stats_data,
+            "invoices": invoices_stats_data,
+            "unique_clients": unique_clients,
+            "top_products": list(top_products),
+            "summary": {
+                "total_products": products_stats_data.get("total_products", 0),
+                "total_invoices": invoices_stats_data.get("total_invoices", 0),
+                "total_revenue": invoices_stats_data.get("total_amount", 0),
+                "inventory_value": products_stats_data.get("inventory_value", 0),
+            },
         }
     )

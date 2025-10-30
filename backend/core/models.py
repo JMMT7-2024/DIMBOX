@@ -242,3 +242,224 @@ class Transaction(models.Model):
         if hasattr(self.user, "record_count"):
             self.user.record_count = self.user.transactions.count()
             self.user.save(update_fields=["record_count"])
+
+
+# ✅ MODELOS EMPRESARIALES - AGREGAR AL FINAL DEL ARCHIVO
+class Product(models.Model):
+    CATEGORY_CHOICES = [
+        ("SERVICE", "Servicio"),
+        ("PRODUCT", "Producto"),
+        ("DIGITAL", "Digital"),
+        ("OTHER", "Otro"),
+    ]
+
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="enterprise_products"
+    )
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    sku = models.CharField(max_length=100, blank=True, null=True, unique=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        help_text="Costo del producto para calcular margen",
+    )
+    category = models.CharField(
+        max_length=20, choices=CATEGORY_CHOICES, default="PRODUCT"
+    )
+    stock = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    tax_rate = models.DecimalField(
+        max_digits=5, decimal_places=2, default=18.00, help_text="IGV Perú (18%)"
+    )
+    image = models.ImageField(upload_to="products/", blank=True, null=True)
+
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "enterprise_products"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["user", "is_active"]),
+            models.Index(fields=["sku"]),
+            models.Index(fields=["user", "category"]),
+        ]
+
+    def __str__(self):
+        return f"{self.name} - S/ {self.price}"
+
+    @property
+    def profit_margin(self):
+        """Calcula el margen de ganancia en porcentaje"""
+        if self.cost and self.price:
+            return float(((self.price - self.cost) / self.price) * 100)
+        return 0.0
+
+    @property
+    def tax_amount(self):
+        """Calcula el monto del impuesto"""
+        return float((self.price * self.tax_rate) / 100)
+
+    @property
+    def price_with_tax(self):
+        """Precio con impuesto incluido"""
+        return float(self.price + self.tax_amount)
+
+    def clean(self):
+        """Validaciones del modelo"""
+        from django.core.exceptions import ValidationError
+
+        if self.price <= 0:
+            raise ValidationError("El precio debe ser mayor a 0")
+
+        if self.cost and self.cost < 0:
+            raise ValidationError("El costo no puede ser negativo")
+
+        if self.stock < 0:
+            raise ValidationError("El stock no puede ser negativo")
+
+    def save(self, *args, **kwargs):
+        """Guardar con validaciones"""
+        self.clean()
+
+        # Generar SKU automático si no se proporciona
+        if not self.sku:
+            last_product = Product.objects.filter(user=self.user).last()
+            next_id = (last_product.id + 1) if last_product else 1
+            self.sku = f"PROD-{self.user.id}-{next_id:04d}"
+
+        super().save(*args, **kwargs)
+
+
+class Invoice(models.Model):
+    STATUS_CHOICES = [
+        ("DRAFT", "Borrador"),
+        ("SENT", "Enviada"),
+        ("PAID", "Pagada"),
+        ("CANCELLED", "Cancelada"),
+    ]
+
+    PAYMENT_METHOD_CHOICES = [
+        ("CASH", "Efectivo"),
+        ("CARD", "Tarjeta"),
+        ("TRANSFER", "Transferencia"),
+        ("OTHER", "Otro"),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="invoices")
+    invoice_number = models.CharField(max_length=50, unique=True)
+    client_name = models.CharField(max_length=255)
+    client_ruc = models.CharField(max_length=20, blank=True, null=True)
+    client_address = models.TextField(blank=True, null=True)
+    client_email = models.EmailField(blank=True, null=True)
+
+    # Totales
+    subtotal = models.DecimalField(max_digits=12, decimal_places=2)
+    tax_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    total = models.DecimalField(max_digits=12, decimal_places=2)
+
+    # Estado y método de pago
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="DRAFT")
+    payment_method = models.CharField(
+        max_length=10, choices=PAYMENT_METHOD_CHOICES, default="CASH"
+    )
+
+    # Fechas
+    issue_date = models.DateField()
+    due_date = models.DateField()
+    paid_date = models.DateField(blank=True, null=True)
+
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "enterprise_invoices"
+        ordering = ["-issue_date", "-created_at"]
+        indexes = [
+            models.Index(fields=["user", "status"]),
+            models.Index(fields=["invoice_number"]),
+            models.Index(fields=["user", "issue_date"]),
+        ]
+
+    def __str__(self):
+        return f"Factura {self.invoice_number} - {self.client_name}"
+
+    def save(self, *args, **kwargs):
+        """Generar número de factura automáticamente"""
+        if not self.invoice_number:
+            last_invoice = Invoice.objects.filter(user=self.user).last()
+            next_id = (last_invoice.id + 1) if last_invoice else 1
+            self.invoice_number = f"F{self.user.id}-{next_id:06d}"
+
+        # Calcular fechas si no se proporcionan
+        if not self.due_date and self.issue_date:
+            from datetime import timedelta
+
+            self.due_date = self.issue_date + timedelta(days=30)
+
+        super().save(*args, **kwargs)
+
+    @property
+    def is_overdue(self):
+        """Verifica si la factura está vencida"""
+        from django.utils import timezone
+
+        return (
+            self.status == "SENT"
+            and self.due_date < timezone.now().date()
+            and not self.paid_date
+        )
+
+
+class InvoiceItem(models.Model):
+    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name="items")
+    product = models.ForeignKey(
+        Product, on_delete=models.CASCADE, related_name="invoice_items"
+    )
+    quantity = models.PositiveIntegerField(default=1)
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+    tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=18.00)
+
+    class Meta:
+        db_table = "enterprise_invoice_items"
+        indexes = [
+            models.Index(fields=["invoice", "product"]),
+        ]
+
+    def __str__(self):
+        return f"{self.product.name} x {self.quantity}"
+
+    @property
+    def subtotal(self):
+        """Subtotal sin impuestos"""
+        return float(self.unit_price * self.quantity)
+
+    @property
+    def tax_amount(self):
+        """Monto de impuestos"""
+        return float(self.subtotal * self.tax_rate / 100)
+
+    @property
+    def total(self):
+        """Total con impuestos"""
+        return float(self.subtotal + self.tax_amount)
+
+    def clean(self):
+        """Validaciones"""
+        from django.core.exceptions import ValidationError
+
+        if self.quantity <= 0:
+            raise ValidationError("La cantidad debe ser mayor a 0")
+
+        if self.unit_price <= 0:
+            raise ValidationError("El precio unitario debe ser mayor a 0")
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)

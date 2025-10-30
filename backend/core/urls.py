@@ -1,4 +1,4 @@
-# core/urls.py - VERSIÓN COMPLETAMENTE CORREGIDA
+# core/urls.py - VERSIÓN COMPLETAMENTE ACTUALIZADA
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from . import views
@@ -96,4 +96,33 @@ urlpatterns = [
     # -------------------------------
     path("health/", views.health, name="health"),
     path("whoami/", views.whoami, name="whoami"),
+    # -------------------------------
+    # ✅ MÓDULO EMPRESARIAL - NUEVAS RUTAS
+    # -------------------------------
+    # 📦 PRODUCTOS
+    path(
+        "enterprise/products/", views.products_list_create, name="products-list-create"
+    ),
+    path("enterprise/products/<int:pk>/", views.product_detail, name="product-detail"),
+    path("enterprise/products/stats/", views.products_stats, name="products-stats"),
+    # 🧾 FACTURAS (INVOICES)
+    path(
+        "enterprise/invoices/", views.invoices_list_create, name="invoices-list-create"
+    ),
+    path(
+        "enterprise/invoices/quick-create/",
+        views.invoices_quick_create,
+        name="invoices-quick-create",
+    ),
+    path("enterprise/invoices/<int:pk>/", views.invoice_detail, name="invoice-detail"),
+    path(
+        "enterprise/invoices/<int:pk>/status/",
+        views.invoice_update_status,
+        name="invoice-update-status",
+    ),
+    path("enterprise/invoices/stats/", views.invoices_stats, name="invoices-stats"),
+    # 📊 DASHBOARD EMPRESARIAL
+    path(
+        "enterprise/dashboard/", views.enterprise_dashboard, name="enterprise-dashboard"
+    ),
 ]
