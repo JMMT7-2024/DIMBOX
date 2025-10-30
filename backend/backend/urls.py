@@ -1,26 +1,67 @@
-# core/urls.py
+# backend/backend/urls.py - ARCHIVO PRINCIPAL CORREGIDO
+from django.contrib import admin
 from django.urls import path, include
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from . import views
+from django.http import HttpResponse
+from django.views.generic import RedirectView
+
+
+def home(request):
+    return HttpResponse("""
+    <html>
+        <head>
+            <title>DIMBOX API</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 40px; }
+                .container { max-width: 800px; margin: 0 auto; }
+                .endpoint { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 5px; }
+                code { background: #eee; padding: 2px 5px; border-radius: 3px; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>🚀 DIMBOX API - Funcionando Correctamente</h1>
+                <p>El servidor backend está operativo. Todos los sistemas funcionan correctamente.</p>
+                
+                <div class="endpoint">
+                    <strong>📊 API Principal:</strong> <a href="/api/">/api/</a>
+                    <br><small>Incluye autenticación, transacciones, límites y administración</small>
+                </div>
+                
+                <div class="endpoint">
+                    <strong>🔐 Admin Django:</strong> <a href="/admin/">/admin/</a>
+                    <br><small>Panel de administración del sistema</small>
+                </div>
+                
+                <div class="endpoint">
+                    <strong>❤️ Health Check:</strong> <a href="/api/health/">/api/health/</a>
+                    <br><small>Verifica el estado del servicio</small>
+                </div>
+                
+                <h3>Endpoints principales disponibles:</h3>
+                <ul>
+                    <li><code>POST /api/token/</code> - Autenticación JWT</li>
+                    <li><code>POST /api/register/</code> - Registro de usuarios</li>
+                    <li><code>GET /api/transactions/</code> - Gestión de transacciones</li>
+                    <li><code>GET /api/user/usage/</code> - Sistema de límites</li>
+                    <li><code>GET /api/admin/stats/</code> - Panel de administración</li>
+                </ul>
+                
+                <p><em>✅ El despliegue se ha completado exitosamente</em></p>
+            </div>
+        </body>
+    </html>
+    """)
+
 
 urlpatterns = [
-    # ✅ AUTH ENDPOINTS
-    path("token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
-    path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
-    path("register/", views.register, name="register"),
-    path("me/", views.me, name="me"),
-    # ✅ PROFILE ENDPOINTS
-    path("profile/", views.profile_view, name="profile"),
-    # ✅ TRANSACTIONS ENDPOINTS
+    # Admin Django
+    path("admin/", admin.site.urls),
+    # API principal - INCLUYE todas las URLs de la app core
+    path("api/", include("core.urls")),
+    # Página de inicio
+    path("", home, name="home"),
+    # Redirección para favicon.ico u otros archivos comunes
     path(
-        "transactions/", views.transactions_list_create, name="transactions_list_create"
+        "favicon.ico", RedirectView.as_view(url="/static/favicon.ico", permanent=True)
     ),
-    path("transactions/<int:pk>/", views.transaction_detail, name="transaction_detail"),
-    # ✅ EXPORT ENDPOINTS
-    path("export/csv/", views.export_csv, name="export_csv"),
-    # ✅ QUICK ACCOUNTS ENDPOINTS - NUEVOS
-    path("quick-accounts/", views.quick_accounts_view, name="quick_accounts"),
-    # ✅ HEALTH & UTILITY ENDPOINTS
-    path("health/", views.health, name="health"),
-    path("whoami/", views.whoami, name="whoami"),
 ]
