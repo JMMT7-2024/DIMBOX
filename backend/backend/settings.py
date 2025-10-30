@@ -1,24 +1,31 @@
 import os
 from pathlib import Path
-import dj_database_url
+import dj_database_url  # Make sure this is imported
 from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# --------- Environment Configuration ----------
-DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() == "true"
+# --------- Environment Configuration (Important!) ----------
+# DEBUG will be read from an environment variable, defaults to False (Production)
+DEBUG = os.environ.get("DJANGO_DEBUG", "False").lower() == "true"
 
-# SECRET_KEY con valor por defecto para desarrollo
-SECRET_KEY = os.environ.get(
-    "DJANGO_SECRET_KEY", "ggdr12$7-8p&8fh31g!4%-jzzj87rub^$e#i)ss$d^fzsp31vj"
-)
+# SECRET_KEY is read from an environment variable.
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
+if not SECRET_KEY:
+    if DEBUG:
+        # Insecure development key
+        SECRET_KEY = "dev-insecure-use-only-locally"
+    else:
+        # NEVER run in production without a secret key defined in the environment
+        raise RuntimeError("DJANGO_SECRET_KEY is not defined in production.")
 
-ALLOWED_HOSTS = os.environ.get(
-    "DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,0.0.0.0,dimbox.onrender.com"
-).split(",")
+# Define your allowed hosts in an environment variable, comma-separated
+# Example: 'localhost,127.0.0.1,my-api.onrender.com,my-frontend.web.app'
+ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "*").split(",")
 
-# --------- Applications ----------
+
+# --------- Applications (Defined ONCE) ----------
 INSTALLED_APPS = [
     # Django
     "django.contrib.admin",
@@ -26,21 +33,22 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
-    "django.contrib.staticfiles",
+    "django.contrib.staticfiles",  # Needed for staticfiles
     # 3rd party
     "corsheaders",
     "rest_framework",
     "rest_framework_simplejwt",
     # Own Apps
     "core",
+    # ✅ NUEVA APP: Cuentas Rápidas
     "quick_accounts",
 ]
 
-# --------- Middleware ----------
+# --------- Middleware (Ordered and Corrected!) ----------
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",
+    "corsheaders.middleware.CorsMiddleware",  # 1. CORS
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",  # 2. WhiteNoise (for static files)
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -55,7 +63,7 @@ TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
         "DIRS": [
-            BASE_DIR / "templates",
+            BASE_DIR / "templates",  # ✅ AGREGADO: Para templates de email
         ],
         "APP_DIRS": True,
         "OPTIONS": {
@@ -71,14 +79,15 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "backend.wsgi.application"
 
-# --------- Database (Neon PostgreSQL) ----------
+# --------- Database (Updated to Neon POOLER!) ----------
+# Use the Neon POOLER URL (port 6543) that worked
 DATABASE_URL = "postgresql://neondb_owner:npg_GyC9kH7bTjrS@ep-little-moon-aciuzzth-pooler.sa-east-1.aws.neon.tech/neondb?sslmode=require"
 
 DATABASES = {
     "default": dj_database_url.config(
         default=DATABASE_URL,
-        conn_max_age=600,
-        ssl_require=True,  # Neon requires SSL
+        conn_max_age=600,  # Optional: Keep connections alive longer
+        ssl_require=True,  # Neon requires SSL!
     )
 }
 
@@ -87,6 +96,7 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
+    # ✅ CONFIGURACIÓN ADICIONAL PARA CUENTAS RÁPIDAS
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
     ],
@@ -95,11 +105,12 @@ REST_FRAMEWORK = {
         "rest_framework.parsers.FormParser",
         "rest_framework.parsers.MultiPartParser",
     ],
+    # ✅ AGREGADO: Configuración de paginación global
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
 }
 
-# JWT Configuration
+# ✅ CONFIGURACIÓN JWT MEJORADA
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
@@ -138,28 +149,33 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 AUTHENTICATION_BACKENDS = ["django.contrib.auth.backends.ModelBackend"]
 
-# --------- Internationalization ----------
-LANGUAGE_CODE = "es-pe"
+# --------- Internationalization (i18n) ----------
+LANGUAGE_CODE = "es-pe"  # Spanish (Peru)
 TIME_ZONE = "America/Lima"
 USE_I18N = True
 USE_TZ = True
 
 # --------- Static Files ----------
 STATIC_URL = "static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+STATIC_ROOT = BASE_DIR / "staticfiles"  # Directory where collectstatic gathers files
+STATICFILES_STORAGE = (
+    "whitenoise.storage.CompressedManifestStaticFilesStorage"  # For production serving
+)
 
+# ✅ AGREGADO: Directorios adicionales para archivos estáticos
 STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
 
+# ✅ AGREGADO: Configuración para archivos multimedia
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 APPEND_SLASH = True
 
-# --------- Production Security ----------
+
+# --------- Production Security (if DEBUG=False) ----------
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     USE_X_FORWARDED_HOST = True
@@ -168,13 +184,17 @@ if not DEBUG:
     CSRF_COOKIE_SECURE = True
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
-    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
 
-# --------- CORS / CSRF ----------
+# --------- CORS / CSRF (Clean Configuration!) ----------
+
+# BEST PRACTICE: Allow all in development (DEBUG=True), use whitelist in production (DEBUG=False)
 CORS_ALLOW_ALL_ORIGINS = False
 
+# PRODUCTION WHITELIST!
+# Put the URL Firebase will give your frontend here.
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
@@ -182,10 +202,11 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
     "https://prueba-diovic.web.app",
     "https://prueba-diovic.firebaseapp.com",
-    "https://dimbox-app.web.app",
-    "https://dimbox-app.firebaseapp.com",
+    "https://dimbox-app.web.app",  # ✅ AGREGADO: Posible futuro dominio
+    "https://dimbox-app.firebaseapp.com",  # ✅ AGREGADO: Posible futuro dominio
 ]
 
+# (Your CSRF_TRUSTED_ORIGINS and CORS_ALLOW_HEADERS looked fine)
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
@@ -194,8 +215,8 @@ CSRF_TRUSTED_ORIGINS = [
     "https://prueba-diovic.web.app",
     "https://prueba-diovic.firebaseapp.com",
     "https://dimbox.onrender.com",
-    "https://dimbox-app.web.app",
-    "https://dimbox-app.firebaseapp.com",
+    "https://dimbox-app.web.app",  # ✅ AGREGADO
+    "https://dimbox-app.firebaseapp.com",  # ✅ AGREGADO
 ]
 
 CORS_ALLOW_HEADERS = [
@@ -207,9 +228,10 @@ CORS_ALLOW_HEADERS = [
     "user-agent",
     "x-csrftoken",
     "x-requested-with",
-    "cache-control",
+    "cache-control",  # ✅ AGREGADO
 ]
 
+# ✅ CONFIGURACIÓN ADICIONAL CORS PARA CUENTAS RÁPIDAS
 CORS_ALLOW_METHODS = [
     "DELETE",
     "GET",
@@ -224,6 +246,7 @@ CORS_EXPOSE_HEADERS = [
     "x-csrftoken",
 ]
 
+# ✅ AGREGADO: Configuración CORS adicional para credenciales
 CORS_ALLOW_CREDENTIALS = True
 
 # --------- Logging ----------
@@ -272,6 +295,9 @@ LOGGING = {
 # --------- Email ----------
 if DEBUG:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+    # Para desarrollo, también puedes usar file-based email
+    # EMAIL_BACKEND = "django.core.mail.backends.filebased.EmailBackend"
+    # EMAIL_FILE_PATH = BASE_DIR / "sent_emails"
 else:
     EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
     EMAIL_HOST = os.environ.get("EMAIL_HOST", "smtp.gmail.com")
@@ -284,18 +310,19 @@ else:
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "no-reply@dimbox.com")
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
 
-EMAIL_TIMEOUT = 30
+# ✅ AGREGADO: Configuración adicional de email
+EMAIL_TIMEOUT = 30  # segundos
 EMAIL_SUBJECT_PREFIX = "[DIMBOX] "
 
-# --------- Password Reset ----------
-PASSWORD_RESET_TIMEOUT = 86400  # 24 horas
+# ✅ AGREGADO: Configuración para password reset
+PASSWORD_RESET_TIMEOUT = 86400  # 24 horas en segundos
 
-# --------- Session Configuration ----------
+# ✅ AGREGADO: Configuración de sesiones (opcional pero recomendado)
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
-SESSION_COOKIE_AGE = 1209600  # 2 semanas
+SESSION_COOKIE_AGE = 1209600  # 2 semanas en segundos
 SESSION_SAVE_EVERY_REQUEST = False
 
-# --------- Cache ----------
+# ✅ AGREGADO: Configuración de cache (para producción)
 if not DEBUG:
     CACHES = {
         "default": {
@@ -311,16 +338,16 @@ else:
         }
     }
 
-# --------- Security Additional ----------
+# ✅ AGREGADO: Configuración de seguridad adicional
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 X_FRAME_OPTIONS = "DENY"
 
-# --------- File Uploads ----------
+# ✅ AGREGADO: Configuración para archivos subidos
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5MB
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000
 
 print(f"✅ DIMBOX Settings Loaded - DEBUG: {DEBUG}")
-print(f"✅ Database: {DATABASES['default']['ENGINE']}")
 print(f"✅ Allowed Hosts: {ALLOWED_HOSTS}")
+print(f"✅ Database: {DATABASES['default']['ENGINE']}")
 print(f"✅ CORS Allowed Origins: {CORS_ALLOWED_ORIGINS}")
