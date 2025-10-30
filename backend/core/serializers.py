@@ -1,4 +1,4 @@
-# core/serializers.py - VERSIÓN CORREGIDA
+# core/serializers.py - VERSIÓN COMPLETAMENTE CORREGIDA
 from rest_framework import serializers
 from .models import User, Transaction
 
@@ -18,17 +18,14 @@ class UserSerializer(serializers.ModelSerializer):
             "goal_name",
             "goal_amount",
             "is_active",
-            "custom_limits",  # ✅ Agregar custom_limits
+            "custom_limits",
         ]
         extra_kwargs = {
             "password": {"write_only": True},
-            # ✅ QUITAR 'subscription' de read_only para que el frontend lo reciba
             "role": {"read_only": True},
             "record_count": {"read_only": True},
             "is_active": {"read_only": True},
-            "custom_limits": {
-                "read_only": True
-            },  # ✅ Mantener custom_limits como read_only
+            "custom_limits": {"read_only": True},
         }
 
     def create(self, validated_data):
@@ -48,28 +45,38 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
 
 
 class AdminUserUpdateSerializer(serializers.ModelSerializer):
-    # ✅ DEFINIR EXPLÍCITAMENTE LAS OPCIONES QUE COINCIDEN CON EL MODELO
-    subscription = serializers.ChoiceField(
-        choices=[
-            ("FREE", "Free"),
-            ("PREMIUM", "Premium"),
-            ("ENTERPRISE", "Enterprise"),
-        ],
-        required=False,
-    )
-
-    role = serializers.ChoiceField(
-        choices=[
-            ("USER", "User"),
-            ("ADMIN", "Admin"),
-            # 'MODERATOR' NO EXISTE en tu modelo - ELIMINAR
-        ],
-        required=False,
-    )
+    # ✅ SOLUCIÓN: Hacer los campos más flexibles
+    subscription = serializers.CharField(required=False)
+    role = serializers.CharField(required=False)
+    is_active = serializers.BooleanField(required=False)
 
     class Meta:
         model = User
         fields = ["subscription", "role", "is_active"]
+
+    def validate_subscription(self, value):
+        """Validación flexible que acepta mayúsculas/minúsculas"""
+        if value:
+            value_upper = value.upper()
+            valid_choices = ["FREE", "PREMIUM", "ENTERPRISE"]
+            if value_upper not in valid_choices:
+                raise serializers.ValidationError(
+                    f"Subscription debe ser: {', '.join(valid_choices)}"
+                )
+            return value_upper  # ✅ Siempre devolver en mayúsculas
+        return value
+
+    def validate_role(self, value):
+        """Validación flexible que acepta mayúsculas/minúsculas"""
+        if value:
+            value_upper = value.upper()
+            valid_choices = ["USER", "ADMIN"]  # ✅ Solo USER y ADMIN como en tu modelo
+            if value_upper not in valid_choices:
+                raise serializers.ValidationError(
+                    f"Role debe ser: {', '.join(valid_choices)}"
+                )
+            return value_upper  # ✅ Siempre devolver en mayúsculas
+        return value
 
 
 class TransactionSerializer(serializers.ModelSerializer):
@@ -90,8 +97,6 @@ class TransactionSerializer(serializers.ModelSerializer):
 
 class AdminUserSerializer(serializers.ModelSerializer):
     record_count = serializers.IntegerField(read_only=True)
-
-    # ✅ NUEVO: Propiedades calculadas para el admin
     usage_stats = serializers.SerializerMethodField()
     effective_limits = serializers.SerializerMethodField()
 
@@ -110,26 +115,22 @@ class AdminUserSerializer(serializers.ModelSerializer):
             "last_login",
             "custom_limits",
             "usage_stats",
-            "effective_limits",  # ✅ Campos adicionales para admin
+            "effective_limits",
         )
 
     def get_usage_stats(self, obj):
-        """✅ Obtener estadísticas de uso del usuario"""
         return obj.usage_stats
 
     def get_effective_limits(self, obj):
-        """✅ Obtener límites efectivos del usuario"""
         return obj.effective_limits
 
 
-# ✅ NUEVO: Serializer para actualización de límites personalizados
 class UserLimitsSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ["custom_limits"]
 
     def validate_custom_limits(self, value):
-        """✅ Validar que custom_limits tenga el formato correcto"""
         if value is not None:
             allowed_keys = {
                 "maxTransactions",
@@ -141,7 +142,6 @@ class UserLimitsSerializer(serializers.ModelSerializer):
                 "retentionMonths",
                 "features",
             }
-
             for key in value.keys():
                 if key not in allowed_keys:
                     raise serializers.ValidationError(
@@ -150,20 +150,16 @@ class UserLimitsSerializer(serializers.ModelSerializer):
         return value
 
 
-# ✅ NUEVO: Serializer para endpoints públicos (sin información sensible)
 class PublicUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ["id", "username", "name", "subscription"]
 
 
-# ✅ NUEVO: Serializer para el endpoint /me/ con información completa
 class MeSerializer(serializers.ModelSerializer):
     usage_stats = serializers.SerializerMethodField()
     effective_limits = serializers.SerializerMethodField()
-    is_premium = (
-        serializers.SerializerMethodField()
-    )  # ✅ Campo conveniente para frontend
+    is_premium = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -194,5 +190,5 @@ class MeSerializer(serializers.ModelSerializer):
         return obj.effective_limits
 
     def get_is_premium(self, obj):
-        """✅ Campo conveniente para que el frontend verifique fácilmente"""
-        return obj.subscription == User.SubscriptionStatus.PREMIUM
+        """✅ Campo conveniente corregido"""
+        return obj.subscription in ["PREMIUM", "ENTERPRISE"]  # ✅ Corregido
