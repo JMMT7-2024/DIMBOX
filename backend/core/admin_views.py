@@ -14,7 +14,10 @@ def admin_stats(request):
         "total": User.objects.count(),
         "premium": User.objects.filter(subscription="PREMIUM").count(),
         "free": User.objects.filter(subscription="FREE").count(),
-        "active": User.objects.filter(subscription="PREMIUM", is_active=True).count(),
+        "enterprise": User.objects.filter(
+            subscription="ENTERPRISE"
+        ).count(),  # ✅ NUEVO
+        "active": User.objects.filter(is_active=True).count(),  # ✅ MEJORADO
     }
     return Response(data)
 
@@ -33,7 +36,8 @@ def admin_users_list(request):
         qs = qs.filter(
             Q(username__icontains=q) | Q(email__icontains=q) | Q(name__icontains=q)
         )
-    if plan in ("FREE", "PREMIUM"):
+    # ✅ ACTUALIZADO PARA INCLUIR ENTERPRISE
+    if plan in ("FREE", "PREMIUM", "ENTERPRISE"):
         qs = qs.filter(subscription=plan)
     if active in ("true", "false"):
         qs = qs.filter(is_active=(active == "true"))
@@ -58,7 +62,8 @@ def admin_users_list(request):
 @permission_classes([IsAdminRole])
 def admin_set_plan(request, pk):
     plan = (request.data.get("plan") or "").upper()
-    if plan not in ("FREE", "PREMIUM"):
+    # ✅ CORREGIDO: AGREGAR "ENTERPRISE" A LA LISTA DE PLANES VÁLIDOS
+    if plan not in ("FREE", "PREMIUM", "ENTERPRISE"):
         return Response({"detail": "plan inválido"}, status=400)
     try:
         u = User.objects.get(pk=pk)
