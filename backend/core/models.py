@@ -9,6 +9,7 @@ class User(AbstractUser):
     class SubscriptionStatus(models.TextChoices):
         FREE = "FREE", "Gratis"
         PREMIUM = "PREMIUM", "Premium"
+        ENTERPRISE = "ENTERPRISE", "Enterprise"
 
     class Role(models.TextChoices):
         USER = "USER", "Usuario"
@@ -57,7 +58,25 @@ class User(AbstractUser):
             return self.custom_limits
 
         # Límites por defecto según plan
-        if self.subscription == self.SubscriptionStatus.PREMIUM:
+        if self.subscription == self.SubscriptionStatus.ENTERPRISE:
+            return {
+                "maxTransactions": 100000,
+                "maxQuickAccounts": 200,
+                "canExport": True,
+                "canAdvancedAnalytics": True,
+                "maxTransactionAmount": 5000000,
+                "maxCategories": 50,
+                "retentionMonths": 60,
+                "features": [
+                    "transactions_unlimited",
+                    "export_excel",
+                    "advanced_analytics",
+                    "quick_accounts_unlimited",
+                    "priority_support",
+                    "api_access",
+                ],
+            }
+        elif self.subscription == self.SubscriptionStatus.PREMIUM:
             return {
                 "maxTransactions": 10000,
                 "maxQuickAccounts": 50,

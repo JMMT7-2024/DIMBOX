@@ -48,6 +48,25 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
 
 
 class AdminUserUpdateSerializer(serializers.ModelSerializer):
+    # ✅ DEFINIR EXPLÍCITAMENTE LAS OPCIONES QUE COINCIDEN CON EL MODELO
+    subscription = serializers.ChoiceField(
+        choices=[
+            ("FREE", "Free"),
+            ("PREMIUM", "Premium"),
+            ("ENTERPRISE", "Enterprise"),
+        ],
+        required=False,
+    )
+
+    role = serializers.ChoiceField(
+        choices=[
+            ("USER", "User"),
+            ("ADMIN", "Admin"),
+            # 'MODERATOR' NO EXISTE en tu modelo - ELIMINAR
+        ],
+        required=False,
+    )
+
     class Meta:
         model = User
         fields = ["subscription", "role", "is_active"]
