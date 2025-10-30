@@ -4,6 +4,7 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation
 import csv
 from io import StringIO
+import re
 
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
@@ -13,6 +14,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.views import APIView
 
 from .models import Transaction, TransactionType, GastoCategoria
 from .serializers import (
@@ -25,7 +27,247 @@ from .serializers import (
     AdminUserUpdateSerializer,
 )
 
+# ✅ IMPORTACIONES NECESARIAS PARA PASSWORD RESET
+from django.contrib.auth.forms import PasswordResetForm, SetPasswordForm
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from django.utils.encoding import force_str, force_bytes
+from django.conf import settings
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+
 User = get_user_model()
+
+# -------------------------------
+# ✅ VISTAS DE PASSWORD RESET - AGREGADAS
+# -------------------------------
+
+
+class CustomPasswordResetView(APIView):
+    """
+    Vista personalizada para reset de password
+    Compatible con el frontend React
+    """
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get("email", "").strip().lower()
+
+        if not email:
+            return Response(
+                {"email": ["Este campo es requerido."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Validación básica de email
+        email_regex = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+        if not re.match(email_regex, email):
+            return Response(
+                {"email": ["Ingresa una dirección de email válida."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Verificar si existe un usuario con este email
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            # Por seguridad, no revelar si el email existe o no
+            return Response(
+                {
+                    "detail": "Si el email existe en nuestro sistema, recibirás un enlace de recuperación."
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        # Verificar que el usuario esté activo
+        if not user.is_active:
+            return Response(
+                {"detail": "Esta cuenta está desactivada."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Generar token y enviar email
+        try:
+            token = default_token_generator.make_token(user)
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+
+            # Contexto para el email
+            context = {
+                "user": user,
+                "uid": uid,
+                "token": token,
+                "protocol": "https" if request.is_secure() else "http",
+                "domain": request.get_host(),
+                "site_name": "DIMBOX",
+            }
+
+            # Renderizar templates de email
+            subject = "Restablecer tu contraseña - DIMBOX"
+
+            # Template HTML mejorado
+            html_message = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                    .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                    .header {{ background: linear-gradient(135deg, #48BB78, #4299E1); color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0; }}
+                    .content {{ background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }}
+                    .button {{ background: #48BB78; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0; }}
+                    .footer {{ text-align: center; margin-top: 20px; font-size: 12px; color: #666; }}
+                    .code {{ background: #f4f4f4; padding: 10px; border-radius: 5px; font-family: monospace; margin: 10px 0; }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>🔐 Restablecer Contraseña</h1>
+                    </div>
+                    <div class="content">
+                        <p>Hola <strong>{user.username}</strong>,</p>
+                        <p>Recibimos una solicitud para restablecer la contraseña de tu cuenta en DIMBOX.</p>
+                        <p>Haz clic en el siguiente enlace para crear una nueva contraseña:</p>
+                        
+                        <p style="text-align: center;">
+                            <a href="{request.build_absolute_uri("/reset-password")}?uid={uid}&token={token}" 
+                               class="button" 
+                               style="color: white; text-decoration: none;">
+                               🔑 Restablecer Contraseña
+                            </a>
+                        </p>
+                        
+                        <p>O copia esta URL en tu navegador:</p>
+                        <div class="code">
+                            {request.build_absolute_uri("/reset-password")}?uid={uid}&token={token}
+                        </div>
+                        
+                        <p>Si no solicitaste este cambio, puedes ignorar este mensaje.</p>
+                        <p>El enlace expirará en 24 horas por seguridad.</p>
+                        
+                        <div class="footer">
+                            <p>Saludos,<br>El equipo de DIMBOX</p>
+                            <p>💼 Tu gestor financiero personal</p>
+                        </div>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+
+            plain_message = f"""
+            Restablecer contraseña - DIMBOX
+            
+            Hola {user.username},
+            
+            Recibimos una solicitud para restablecer la contraseña de tu cuenta en DIMBOX.
+            
+            Usa el siguiente enlace para crear una nueva contraseña:
+            {request.build_absolute_uri("/reset-password")}?uid={uid}&token={token}
+            
+            Si no solicitaste este cambio, puedes ignorar este mensaje.
+            El enlace expirará en 24 horas por seguridad.
+            
+            Saludos,
+            El equipo de DIMBOX
+            """
+
+            # Enviar email
+            send_mail(
+                subject=subject,
+                message=plain_message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                html_message=html_message,
+                fail_silently=False,
+            )
+
+            return Response(
+                {
+                    "detail": "Se ha enviado un email con instrucciones para resetear tu contraseña."
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            print(f"Error enviando email de recuperación: {e}")
+            return Response(
+                {
+                    "detail": "Error al enviar el email de recuperación. Por favor, intenta más tarde."
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class CustomPasswordResetConfirmView(APIView):
+    """
+    Vista para confirmar el reset de password
+    """
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        uidb64 = request.data.get("uid")
+        token = request.data.get("token")
+        new_password = request.data.get("new_password")
+        confirm_password = request.data.get("confirm_password")
+
+        if not all([uidb64, token, new_password]):
+            return Response(
+                {"detail": "Faltan campos requeridos."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if new_password != confirm_password:
+            return Response(
+                {"detail": "Las contraseñas no coinciden."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if len(new_password) < 8:
+            return Response(
+                {"detail": "La contraseña debe tener al menos 8 caracteres."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            # Decodificar el uid
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            user = None
+
+        if user is not None and default_token_generator.check_token(user, token):
+            # Token válido, cambiar la contraseña
+            user.set_password(new_password)
+            user.save()
+
+            # Enviar email de confirmación
+            try:
+                send_mail(
+                    subject="Contraseña actualizada - DIMBOX",
+                    message=f"Hola {user.username},\n\nTu contraseña ha sido actualizada exitosamente.\n\nSi no realizaste este cambio, por favor contacta con soporte inmediatamente.\n\nSaludos,\nEl equipo de DIMBOX",
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[user.email],
+                    fail_silently=True,
+                )
+            except Exception:
+                pass  # No fallar si el email de confirmación no se envía
+
+            return Response(
+                {
+                    "detail": "Contraseña restablecida exitosamente. Ya puedes iniciar sesión."
+                },
+                status=status.HTTP_200_OK,
+            )
+        else:
+            return Response(
+                {"detail": "El enlace de recuperación es inválido o ha expirado."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
 
 # -------------------------------
 # Helpers
@@ -494,7 +736,7 @@ def admin_stats(request):
 
 @api_view(["GET"])
 @permission_classes([IsAdminUser])
-def admin_users(request):
+def admin_users_list(request):
     """Lista de usuarios para administración."""
     q = request.GET.get("q", "").strip()
     plan = request.GET.get("plan", "").strip()
@@ -610,13 +852,16 @@ def admin_set_role(request, user_id):
 
 
 @api_view(["GET"])
+@permission_classes([AllowAny])
 def health(request):
+    """Health check del servicio"""
     return Response({"ok": True, "time": now().isoformat()})
 
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def whoami(request):
+    """Información básica del usuario autenticado"""
     u = request.user
     return Response(
         {

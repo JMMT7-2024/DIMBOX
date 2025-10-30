@@ -1,4 +1,4 @@
-# core/urls.py - VERSIÓN COMPLETA CORREGIDA
+# core/urls.py - VERSIÓN COMPLETA CORREGIDA CON PASSWORD RESET
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from . import views
@@ -9,7 +9,20 @@ urlpatterns = [
     # Autenticación JWT
     # -------------------------------
     path("token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
-    path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("token/refresh/", TokenRefreshView.asview(), name="token_refresh"),
+    # -------------------------------
+    # ✅ RECUPERACIÓN DE CONTRASEÑAS - NUEVO ENDPOINT
+    # -------------------------------
+    path(
+        "password/reset/",
+        views.CustomPasswordResetView.as_view(),
+        name="password_reset",
+    ),
+    path(
+        "password/reset/confirm/",
+        views.CustomPasswordResetConfirmView.as_view(),
+        name="password_reset_confirm",
+    ),
     # -------------------------------
     # Registro y perfil de usuario
     # -------------------------------
