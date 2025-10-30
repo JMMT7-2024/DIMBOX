@@ -1,4 +1,3 @@
-# core/views.py - VERSIÓN ESTABLE Y CORREGIDA
 from __future__ import annotations
 
 from datetime import datetime
@@ -9,23 +8,21 @@ from io import StringIO
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
 from django.utils.timezone import now
-from django.db.models import (
-    Q,
-)  # ✅ limpiado: se eliminaron imports no usados (Count, Sum, Avg)
+from django.db.models import Q
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework import status
 
 from .models import Transaction, TransactionType, GastoCategoria
-from .serializers import (  # ✅ importación completa y corregida
+from .serializers import (
     UserSerializer,
     MeSerializer,
     ProfileUpdateSerializer,
     AdminUserSerializer,
     UserLimitsSerializer,
     TransactionSerializer,
-    AdminUserUpdateSerializer,  # ✅ agregado
+    AdminUserUpdateSerializer,
 )
 
 User = get_user_model()
@@ -162,9 +159,7 @@ def transactions_list_create(request):
     serializer = TransactionSerializer(data=request.data)
     if serializer.is_valid():
         amount = Decimal(str(serializer.validated_data["amount"]))
-        max_amount = Decimal(
-            str(effective_limits.get("maxTransactionAmount", 10000))
-        )  # ✅ comparación segura
+        max_amount = Decimal(str(effective_limits.get("maxTransactionAmount", 10000)))
 
         if amount > max_amount:
             return Response(
@@ -425,7 +420,7 @@ def admin_update_global_limits(request):
 
 
 # -------------------------------
-# Administración
+# Administración - CORREGIDO
 # -------------------------------
 
 
@@ -433,31 +428,68 @@ def admin_update_global_limits(request):
 @permission_classes([IsAdminUser])
 def admin_stats(request):
     """Estadísticas generales para panel admin."""
-    total_users = User.objects.count()
-    premium_users = User.objects.filter(subscription="PREMIUM").count()
-    free_users = User.objects.filter(subscription="FREE").count()
-    active_users = User.objects.filter(is_active=True).count()
-    today = now().date()
-    today_registrations = User.objects.filter(date_joined__date=today).count()
-    total_transactions = Transaction.objects.count()
-    limits_stats = admin_limits_stats(request).data
+    try:
+        total_users = User.objects.count()
+        premium_users = User.objects.filter(subscription="PREMIUM").count()
+        free_users = User.objects.filter(subscription="FREE").count()
+        active_users = User.objects.filter(is_active=True).count()
+        today = now().date()
+        today_registrations = User.objects.filter(date_joined__date=today).count()
+        total_transactions = Transaction.objects.count()
 
-    return Response(
-        {
-            "total": total_users,
-            "premium": premium_users,
-            "free": free_users,
-            "active": active_users,
-            "today_registrations": today_registrations,
-            "total_transactions": total_transactions,
-            "limits_usage": {
-                "near_limit_users": limits_stats.get("near_limit_users", 0),
-                "exceeded_limit_users": limits_stats.get("exceeded_limit_users", 0),
-                "average_usage": limits_stats.get("average_usage", 0),
-            },
-            "trends": {"total": 0, "premium": 0, "free": 0, "active": 0},
-        }
-    )
+        # Calcular estadísticas de límites manualmente para evitar recursión
+        all_users = User.objects.all()
+        near_limit_count = 0
+        exceeded_limit_count = 0
+        usage_percentages = []
+
+        for user in all_users:
+            try:
+                # Calcular uso básico sin depender de MeSerializer
+                user_transactions = Transaction.objects.filter(user=user).count()
+                user_limits = user.get_effective_limits()
+                max_transactions = user_limits.get("maxTransactions", 100)
+
+                if max_transactions > 0:
+                    usage_percentage = (user_transactions / max_transactions) * 100
+                else:
+                    usage_percentage = 0
+
+                usage_percentages.append(usage_percentage)
+
+                if usage_percentage >= 100:
+                    exceeded_limit_count += 1
+                elif usage_percentage >= 80:
+                    near_limit_count += 1
+            except Exception:
+                continue
+
+        average_usage = (
+            sum(usage_percentages) / len(usage_percentages) if usage_percentages else 0
+        )
+
+        return Response(
+            {
+                "total": total_users,
+                "premium": premium_users,
+                "free": free_users,
+                "active": active_users,
+                "today_registrations": today_registrations,
+                "total_transactions": total_transactions,
+                "limits_usage": {
+                    "near_limit_users": near_limit_count,
+                    "exceeded_limit_users": exceeded_limit_count,
+                    "average_usage": round(average_usage, 1),
+                },
+                "trends": {"total": 0, "premium": 0, "free": 0, "active": 0},
+            }
+        )
+
+    except Exception as e:
+        return Response(
+            {"error": f"Error calculando estadísticas: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 
 @api_view(["GET"])
