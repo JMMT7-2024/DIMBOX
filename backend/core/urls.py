@@ -1,4 +1,4 @@
-# core/urls.py - VERSIÓN COMPLETAMENTE ACTUALIZADA
+# core/urls.py - VERSIÓN COMPLETAMENTE ACTUALIZADA CON MÓDULO EMPRESARIAL
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from . import views
