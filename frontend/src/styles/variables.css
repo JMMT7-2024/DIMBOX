@@ -1,53 +1,334 @@
-/* frontend/src/styles/variables.css */
+/* src/styles/variables.css - VERSIÓN ACTUALIZADA CON COLORES VERDES DIMBOX */
+/* ==========================================================================
+   VARIABLES CSS GLOBALES PARA DIMBOX
+   ========================================================================== */
 
-/* COLORES */
 :root {
-    --primary-color: #90EE90;
-    /* Verde Lima (Lighter Green) */
-    --primary-color-rgb: 144, 238, 144;
-    /* RGB para gradientes/transparencias */
+    /* ============ PALETA DE COLORES PRINCIPAL ============ */
 
-    --secondary-color: #1A202C;
-    /* Tinta - Para texto principal y fondo de tarjetas oscuras */
-    --accent-color: #E2E8F0;
-    /* Para bordes y líneas sutiles */
+    /* Color Brand (Verde DIMBOX - Actualizado) */
+    --color-brand-50: #f0fdf4;
+    --color-brand-100: #dcfce7;
+    --color-brand-200: #bbf7d0;
+    --color-brand-300: #86efac;
+    --color-brand-400: #4ade80;
+    --color-brand-500: #22c55e;
+    /* Verde principal DIMBOX */
+    --color-brand-600: #16a34a;
+    --color-brand-700: #15803d;
+    --color-brand-800: #166534;
+    --color-brand-900: #14532d;
 
-    --text-primary: #1A202C;
-    /* Tinta principal */
-    --text-secondary: #6B7280;
-    /* Gris para texto secundario */
-    --text-muted: #9CA3AF;
-    /* Gris para texto muy sutil */
-    --text-light: #D1D5DB;
-    /* Gris muy claro */
+    /* Colores Semánticos - Texto */
+    --color-text-primary: #111827;
+    /* Gray 900 */
+    --color-text-secondary: #374151;
+    /* Gray 700 */
+    --color-text-muted: #6b7280;
+    /* Gray 500 */
+    --color-text-inverted: #ffffff;
+    /* Blanco */
 
-    --bg-app: #F9FAFB;
-    /* Fondo general de la aplicación */
-    --bg-card: #FFFFFF;
-    /* Fondo de tarjetas */
-    --bg-muted: #F5F7FA;
-    /* Fondo de elementos sutiles (ej. tabs inactivas) */
+    /* Colores Semánticos - Fondos */
+    --color-bg-app: #f9fafb;
+    /* Gray 50 */
+    --color-bg-card: #ffffff;
+    /* Blanco */
+    --color-bg-muted: #f3f4f6;
+    /* Gray 100 */
+    --color-bg-hover: #f9fafb;
+    /* Gray 50 */
 
-    --success-color: #4CAF50;
-    /* Verde de éxito */
-    --error-color: #F44336;
-    /* Rojo de error */
-    --warning-color: #FFC107;
-    /* Amarillo de advertencia */
+    /* Colores Semánticos - Bordes */
+    --color-border-default: #e5e7eb;
+    /* Gray 200 */
+    --color-border-focused: #22c55e;
+    /* Brand 500 DIMBOX */
+    --color-border-subtle: #f3f4f6;
+    /* Gray 100 */
 
-    /* SOMBRAS */
-    --shadow-light: 2px 2px 8px rgba(0, 0, 0, 0.05);
-    --shadow-medium: 4px 4px 15px rgba(0, 0, 0, 0.08);
-    --shadow-hover: 6px 6px 20px rgba(0, 0, 0, 0.12);
+    /* Colores de Estado */
+    --color-success-50: #f0fdf4;
+    --color-success-500: #22c55e;
+    --color-success-600: #16a34a;
 
-    /* RADIOS DE BORDE */
-    --border-radius-base: 16px;
-    --border-radius-lg: 16px;
-    --border-radius-md: 12px;
-    --border-radius-sm: 8px;
+    --color-warning-50: #fffbeb;
+    --color-warning-500: #f59e0b;
+    --color-warning-600: #d97706;
 
-    /* FUENTES */
-    --font-family-base: 'Inter', sans-serif;
-    --font-size-base: 14px;
+    --color-error-50: #fef2f2;
+    --color-error-500: #ef4444;
+    --color-error-600: #dc2626;
+
+    /* Escala de Grises */
+    --color-gray-50: #f9fafb;
+    --color-gray-100: #f3f4f6;
+    --color-gray-200: #e5e7eb;
+    --color-gray-300: #d1d5db;
+    --color-gray-400: #9ca3af;
+    --color-gray-500: #6b7280;
+    --color-gray-600: #4b5563;
+    --color-gray-700: #374151;
+    --color-gray-800: #1f2937;
+    --color-gray-900: #111827;
+
+    /* ============ TIPOGRAFÍA ============ */
+
+    /* Familias de Fuentes */
+    --font-family-heading: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-family-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-family-mono: 'Fira Code', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', monospace;
+
+    /* Tamaños de Fuente */
+    --font-size-xs: 0.75rem;
+    /* 12px */
+    --font-size-sm: 0.875rem;
+    /* 14px */
+    --font-size-md: 1rem;
+    /* 16px */
+    --font-size-lg: 1.125rem;
+    /* 18px */
+    --font-size-xl: 1.25rem;
+    /* 20px */
+    --font-size-2xl: 1.5rem;
+    /* 24px */
+    --font-size-3xl: 1.875rem;
+    /* 30px */
+    --font-size-4xl: 2.25rem;
+    /* 36px */
+
+    /* Pesos de Fuente */
+    --font-weight-normal: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+
+    /* Alturas de Línea */
+    --line-height-tight: 1.25;
     --line-height-base: 1.5;
+    --line-height-relaxed: 1.75;
+
+    /* ============ ESPACIADO ============ */
+
+    /* Sistema de Espaciado (basado en 4px = 0.25rem) */
+    --spacing-0-5: 0.125rem;
+    /* 2px */
+    --spacing-1: 0.25rem;
+    /* 4px */
+    --spacing-1-5: 0.375rem;
+    /* 6px */
+    --spacing-2: 0.5rem;
+    /* 8px */
+    --spacing-2-5: 0.625rem;
+    /* 10px */
+    --spacing-3: 0.75rem;
+    /* 12px */
+    --spacing-3-5: 0.875rem;
+    /* 14px */
+    --spacing-4: 1rem;
+    /* 16px */
+    --spacing-5: 1.25rem;
+    /* 20px */
+    --spacing-6: 1.5rem;
+    /* 24px */
+    --spacing-7: 1.75rem;
+    /* 28px */
+    --spacing-8: 2rem;
+    /* 32px */
+    --spacing-9: 2.25rem;
+    /* 36px */
+    --spacing-10: 2.5rem;
+    /* 40px */
+    --spacing-12: 3rem;
+    /* 48px */
+    --spacing-14: 3.5rem;
+    /* 56px */
+    --spacing-16: 4rem;
+    /* 64px */
+    --spacing-20: 5rem;
+    /* 80px */
+    --spacing-24: 6rem;
+    /* 96px */
+
+    /* ============ BORDES Y RADIOS ============ */
+
+    --border-radius-xs: 0.125rem;
+    /* 2px */
+    --border-radius-sm: 0.25rem;
+    /* 4px */
+    --border-radius-md: 0.375rem;
+    /* 6px */
+    --border-radius-lg: 0.5rem;
+    /* 8px */
+    --border-radius-xl: 0.75rem;
+    /* 12px */
+    --border-radius-2xl: 1rem;
+    /* 16px */
+
+    --border-width-thin: 1px;
+    --border-width-medium: 2px;
+    --border-width-thick: 3px;
+
+    /* ============ SOMBRAS ============ */
+
+    --shadow-xs: 0 0 0 1px rgba(0, 0, 0, 0.05);
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-base: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    --shadow-outline: 0 0 0 3px rgba(34, 197, 94, 0.3);
+    /* Brand 500 DIMBOX con opacidad */
+    --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+
+    /* ============ COMPONENTES ESPECÍFICOS ============ */
+
+    /* Alturas de componentes */
+    --button-height-xs: 24px;
+    --button-height-sm: 32px;
+    --button-height-md: 40px;
+    --button-height-lg: 48px;
+
+    --input-height-xs: 24px;
+    --input-height-sm: 32px;
+    --input-height-md: 40px;
+    --input-height-lg: 48px;
+
+    /* Z-Index Scale */
+    --z-index-dropdown: 1000;
+    --z-index-sticky: 1020;
+    --z-index-fixed: 1030;
+    --z-index-modal-backdrop: 1040;
+    --z-index-modal: 1050;
+    --z-index-popover: 1060;
+    --z-index-tooltip: 1070;
+    --z-index-toast: 1080;
+
+    /* ============ ANIMACIONES Y TRANSICIONES ============ */
+
+    --transition-duration-fast: 150ms;
+    --transition-duration-normal: 250ms;
+    --transition-duration-slow: 350ms;
+
+    --transition-timing-ease: ease;
+    --transition-timing-ease-in: ease-in;
+    --transition-timing-ease-out: ease-out;
+    --transition-timing-ease-in-out: ease-in-out;
+
+    /* ============ BREAKPOINTS (para referencia) ============ */
+
+    --breakpoint-sm: 30em;
+    /* 480px */
+    --breakpoint-md: 48em;
+    /* 768px */
+    --breakpoint-lg: 62em;
+    /* 992px */
+    --breakpoint-xl: 80em;
+    /* 1280px */
+    --breakpoint-2xl: 96em;
+    /* 1536px */
+}
+
+/* ============ MODO OSCURO ============ */
+[data-theme="dark"],
+.chakra-ui-dark {
+    /* Colores Semánticos - Texto */
+    --color-text-primary: #f9fafb;
+    /* Gray 50 */
+    --color-text-secondary: #e5e7eb;
+    /* Gray 200 */
+    --color-text-muted: #9ca3af;
+    /* Gray 400 */
+
+    /* Colores Semánticos - Fondos */
+    --color-bg-app: #111827;
+    /* Gray 900 */
+    --color-bg-card: #1f2937;
+    /* Gray 800 */
+    --color-bg-muted: #374151;
+    /* Gray 700 */
+    --color-bg-hover: #374151;
+    /* Gray 700 */
+
+    /* Colores Semánticos - Bordes */
+    --color-border-default: #374151;
+    /* Gray 700 */
+    --color-border-focused: #22c55e;
+    /* Brand 500 DIMBOX (igual) */
+    --color-border-subtle: #4b5563;
+    /* Gray 600 */
+
+    /* Escala de Grises (invertida para modo oscuro) */
+    --color-gray-50: #111827;
+    --color-gray-100: #1f2937;
+    --color-gray-200: #374151;
+    --color-gray-300: #4b5563;
+    --color-gray-400: #6b7280;
+    --color-gray-500: #9ca3af;
+    --color-gray-600: #d1d5db;
+    --color-gray-700: #e5e7eb;
+    --color-gray-800: #f3f4f6;
+    --color-gray-900: #f9fafb;
+
+    /* Sombras ajustadas para modo oscuro */
+    --shadow-xs: 0 0 0 1px rgba(255, 255, 255, 0.05);
+    --shadow-sm: 0 1px 2px 0 rgba(255, 255, 255, 0.05);
+    --shadow-base: 0 1px 3px 0 rgba(255, 255, 255, 0.1), 0 1px 2px 0 rgba(255, 255, 255, 0.06);
+    --shadow-md: 0 4px 6px -1px rgba(255, 255, 255, 0.1), 0 2px 4px -1px rgba(255, 255, 255, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(255, 255, 255, 0.1), 0 4px 6px -2px rgba(255, 255, 255, 0.05);
+    --shadow-xl: 0 20px 25px -5px rgba(255, 255, 255, 0.1), 0 10px 10px -5px rgba(255, 255, 255, 0.04);
+}
+
+/* ============ ALTO CONTRASTE ============ */
+@media (prefers-contrast: high) {
+    :root {
+        --color-border-default: #000000;
+        --color-border-focused: #000000;
+        --shadow-outline: 0 0 0 3px #000000;
+    }
+}
+
+/* ============ REDUCED MOTION ============ */
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --transition-duration-fast: 0ms;
+        --transition-duration-normal: 0ms;
+        --transition-duration-slow: 0ms;
+    }
+}
+
+/* ============ UTILIDADES ESPECÍFICAS DIMBOX ============ */
+
+/* Clases de utilidad para colores DIMBOX */
+.text-dimbox {
+    color: var(--color-brand-500);
+}
+
+.bg-dimbox {
+    background-color: var(--color-brand-500);
+}
+
+.border-dimbox {
+    border-color: var(--color-brand-500);
+}
+
+/* Gradientes DIMBOX */
+.gradient-dimbox-primary {
+    background: linear-gradient(135deg, var(--color-brand-500), var(--color-brand-600));
+}
+
+.gradient-dimbox-secondary {
+    background: linear-gradient(135deg, var(--color-brand-400), var(--color-brand-500));
+}
+
+/* Estados hover y focus específicos para DIMBOX */
+.hover-dimbox:hover {
+    background-color: var(--color-brand-50);
+    border-color: var(--color-brand-500);
+}
+
+.focus-dimbox:focus {
+    box-shadow: var(--shadow-outline);
+    border-color: var(--color-brand-500);
 }

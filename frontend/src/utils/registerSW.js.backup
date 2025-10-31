@@ -1,0 +1,276 @@
+// Registrar Service Worker para PWA - VERSIÓN OPTIMIZADA
+export const registerSW = () => {
+    if (!('serviceWorker' in navigator)) {
+        console.warn('⚠️ Service Worker no soportado en este navegador');
+        return;
+    }
+
+    // No esperar a 'load' - registrar inmediatamente pero con mejor manejo
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initSW);
+    } else {
+        initSW();
+    }
+};
+
+const initSW = () => {
+    const swUrl = `${window.location.origin}/sw.js`;
+
+    // Evitar registro duplicado en desarrollo
+    if (process.env.NODE_ENV === 'development') {
+        console.log('🔧 Modo desarrollo: SW deshabilitado');
+        return;
+    }
+
+    navigator.serviceWorker
+        .register(swUrl)
+        .then((registration) => {
+            console.log('✅ Service Worker registrado correctamente:', registration.scope);
+
+            setupSWListeners(registration);
+            startUpdateChecks(registration);
+
+        })
+        .catch((registrationError) => {
+            console.error('❌ Error registrando Service Worker:', registrationError);
+
+            // Reintentar después de un tiempo en caso de error
+            setTimeout(() => {
+                console.log('🔄 Reintentando registro del Service Worker...');
+                initSW();
+            }, 30000); // 30 segundos
+        });
+};
+
+const setupSWListeners = (registration) => {
+    // Escuchar cuando se encuentra una actualización
+    registration.addEventListener('updatefound', () => {
+        const newWorker = registration.installing;
+        console.log('🔄 Nueva versión del Service Worker encontrada');
+
+        newWorker.addEventListener('statechange', () => {
+            console.log(`📦 Estado del nuevo SW: ${newWorker.state}`);
+
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                console.log('🎯 Nueva versión lista. Mostrando notificación...');
+                showUpdateNotification();
+            }
+
+            if (newWorker.state === 'activated') {
+                console.log('🚀 Nuevo Service Worker activado');
+                // Aquí puedes ejecutar acciones post-activación
+            }
+        });
+    });
+
+    // Escuchar cambios de controlador
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        console.log('🔄 Controlador del SW cambiado');
+
+        // Esperar un momento antes de recargar para evitar conflictos
+        setTimeout(() => {
+            if (!window.isUpdating) {
+                window.isUpdating = true;
+                console.log('🔄 Recargando página para aplicar actualización...');
+                window.location.reload();
+            }
+        }, 1000);
+    });
+
+    // Manejar mensajes del Service Worker
+    navigator.serviceWorker.addEventListener('message', (event) => {
+        handleSWMessage(event.data);
+    });
+
+    // Manejar errores del Service Worker
+    navigator.serviceWorker.addEventListener('error', (event) => {
+        console.error('🚨 Error en Service Worker:', event.error);
+    });
+};
+
+const startUpdateChecks = (registration) => {
+    // Verificar actualizaciones periódicamente
+    const updateInterval = setInterval(() => {
+        if (registration) {
+            registration.update().catch(error => {
+                console.warn('⚠️ Error en actualización periódica:', error);
+            });
+        }
+    }, 2 * 60 * 60 * 1000); // Cada 2 horas
+
+    // También verificar cuando la app gana visibilidad
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && registration) {
+            registration.update().catch(console.warn);
+        }
+    });
+
+    return updateInterval;
+};
+
+const handleSWMessage = (data) => {
+    if (!data || !data.type) return;
+
+    console.log('📨 Mensaje del Service Worker:', data);
+
+    switch (data.type) {
+        case 'CACHE_UPDATED':
+            console.log('🔄 Cache actualizado:', data.payload);
+            break;
+
+        case 'SYNC_COMPLETED':
+            console.log('✅ Sincronización completada');
+            // Podrías actualizar la UI aquí
+            break;
+
+        case 'OFFLINE_DATA_READY':
+            console.log('📱 Datos offline disponibles');
+            break;
+
+        case 'BACKGROUND_SYNC_FAILED':
+            console.warn('⚠️ Sincronización en segundo plano falló:', data.error);
+            break;
+
+        default:
+            console.log('📨 Mensaje no manejado:', data);
+    }
+};
+
+// Función para mostrar notificación de actualización
+const showUpdateNotification = () => {
+    // Verificar si estamos en un contexto de UI (React)
+    if (typeof window !== 'undefined' && window.showUpdatePrompt) {
+        window.showUpdatePrompt();
+        return;
+    }
+
+    // Fallback: crear notificación nativa
+    if ('Notification' in window && Notification.permission === 'granted') {
+        const notification = new Notification('¡Nueva versión disponible!', {
+            body: 'Toca para actualizar la aplicación',
+            icon: '/icons/icon-192x192.png',
+            tag: 'app-update'
+        });
+
+        notification.onclick = () => {
+            window.location.reload();
+            notification.close();
+        };
+
+        setTimeout(() => notification.close(), 10000);
+
+    } else {
+        // Último fallback: console y confirm
+        console.log('🆕 Nueva versión disponible. Recarga la página para actualizar.');
+
+        if (window.confirm('¡Nueva versión disponible! ¿Quieres recargar la página para actualizar?')) {
+            window.location.reload();
+        }
+    }
+};
+
+// Función para verificar el estado del Service Worker
+export const checkSWStatus = async () => {
+    if (!navigator.serviceWorker) {
+        return {
+            supported: false,
+            active: false,
+            state: 'unsupported',
+            message: 'Service Worker no soportado en este navegador'
+        };
+    }
+
+    try {
+        const registration = await navigator.serviceWorker.ready;
+        const sw = registration.active;
+
+        return {
+            supported: true,
+            active: !!sw,
+            state: sw?.state || 'unknown',
+            scope: registration.scope,
+            version: 'v4.0.0',
+            message: sw ? 'Service Worker activo y funcionando' : 'Service Worker registrado pero no activo'
+        };
+    } catch (error) {
+        return {
+            supported: true,
+            active: false,
+            state: 'error',
+            message: `Error verificando estado: ${error.message}`
+        };
+    }
+};
+
+// Función para forzar la actualización del Service Worker
+export const forceUpdateSW = async () => {
+    if (!navigator.serviceWorker) {
+        return { success: false, message: 'Service Worker no soportado' };
+    }
+
+    try {
+        const registration = await navigator.serviceWorker.ready;
+        await registration.update();
+        return {
+            success: true,
+            message: 'Service Worker actualizado correctamente',
+            timestamp: new Date().toISOString()
+        };
+    } catch (error) {
+        return {
+            success: false,
+            message: `Error actualizando Service Worker: ${error.message}`
+        };
+    }
+};
+
+// Función para limpiar cache del Service Worker
+export const clearSWCache = async () => {
+    if (!navigator.serviceWorker || !caches) {
+        return { success: false, message: 'Service Worker o Cache API no soportados' };
+    }
+
+    try {
+        const cacheNames = await caches.keys();
+        const dimboxCaches = cacheNames.filter(name => name.startsWith('dimbox-'));
+
+        await Promise.all(
+            dimboxCaches.map(cacheName => {
+                console.log('🗑️ Eliminando cache:', cacheName);
+                return caches.delete(cacheName);
+            })
+        );
+
+        return {
+            success: true,
+            message: `Cache limpiado correctamente (${dimboxCaches.length} caches eliminados)`,
+            clearedCaches: dimboxCaches
+        };
+    } catch (error) {
+        return {
+            success: false,
+            message: `Error limpiando cache: ${error.message}`
+        };
+    }
+};
+
+// Función para desregistrar el Service Worker (útil en desarrollo)
+export const unregisterSW = async () => {
+    if (!navigator.serviceWorker) return;
+
+    try {
+        const registration = await navigator.serviceWorker.ready;
+        const result = await registration.unregister();
+
+        if (result) {
+            console.log('✅ Service Worker desregistrado correctamente');
+        }
+
+        return result;
+    } catch (error) {
+        console.error('❌ Error desregistrando Service Worker:', error);
+        return false;
+    }
+};
+
+export default registerSW;

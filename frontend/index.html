@@ -1,7 +1,146 @@
-<body>
-  <meta name="viewport"
-    content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, shrink-to-fit=no" />
+<!DOCTYPE html>
+<html lang="es">
 
-  <div id="root"></div>
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+
+  <!-- ✅ VIEWPORT OPTIMIZADO PARA PWA -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
+  <!-- ✅ TÍTULO OPTIMIZADO -->
+  <title>DIMBOX - Gestión Financiera Inteligente</title>
+
+  <!-- ✅ META DESCRIPTION PARA SEO -->
+  <meta name="description"
+    content="Aplicación PWA avanzada para gestión financiera personal. Controla tus gastos, ahorros y presupuestos con tecnología AI." />
+
+  <!-- ✅ META TAGS PARA PWA -->
+  <meta name="theme-color" content="#3182CE" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="DIMBOX" />
+  <meta name="format-detection" content="telephone=no" />
+  <meta name="mobile-web-app-capable" content="yes" />
+
+  <!-- ✅ OPEN GRAPH META TAGS -->
+  <meta property="og:title" content="DIMBOX - Gestión Financiera Inteligente" />
+  <meta property="og:description" content="Controla tus finanzas personales con nuestra aplicación PWA avanzada" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://dimbox.onrender.com" />
+  <meta property="og:image" content="/icons/icon-512x512.png" />
+
+  <!-- ✅ TWITTER META TAGS -->
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="DIMBOX - Gestión Financiera" />
+  <meta name="twitter:description" content="Aplicación PWA para control financiero personal" />
+  <meta name="twitter:image" content="/icons/icon-512x512.png" />
+
+  <!-- ✅ FAVICONS Y APP ICONS -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16x16.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180x180.png" />
+  <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png" />
+  <link rel="apple-touch-icon" sizes="144x144" href="/icons/icon-144x144.png" />
+  <link rel="apple-touch-icon" sizes="120x120" href="/icons/icon-120x120.png" />
+  <link rel="apple-touch-icon" sizes="114x114" href="/icons/icon-114x114.png" />
+  <link rel="apple-touch-icon" sizes="76x76" href="/icons/icon-76x76.png" />
+  <link rel="apple-touch-icon" sizes="72x72" href="/icons/icon-72x72.png" />
+  <link rel="apple-touch-icon" sizes="60x60" href="/icons/icon-60x60.png" />
+  <link rel="apple-touch-icon" sizes="57x57" href="/icons/icon-57x57.png" />
+
+  <!-- ✅ SPLASH SCREENS PARA IOS -->
+  <link rel="apple-touch-startup-image" href="/splashscreens/iphone5_splash.png"
+    media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)" />
+  <link rel="apple-touch-startup-image" href="/splashscreens/iphone6_splash.png"
+    media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" />
+  <link rel="apple-touch-startup-image" href="/splashscreens/iphoneplus_splash.png"
+    media="(device-width: 621px) and (device-height: 1104px) and (-webkit-device-pixel-ratio: 3)" />
+  <link rel="apple-touch-startup-image" href="/splashscreens/iphonex_splash.png"
+    media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" />
+  <link rel="apple-touch-startup-image" href="/splashscreens/iphonexr_splash.png"
+    media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)" />
+  <link rel="apple-touch-startup-image" href="/splashscreens/iphonexsmax_splash.png"
+    media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)" />
+  <link rel="apple-touch-startup-image" href="/splashscreens/ipad_splash.png"
+    media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2)" />
+  <link rel="apple-touch-startup-image" href="/splashscreens/ipadpro1_splash.png"
+    media="(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2)" />
+  <link rel="apple-touch-startup-image" href="/splashscreens/ipadpro3_splash.png"
+    media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2)" />
+  <link rel="apple-touch-startup-image" href="/splashscreens/ipadpro2_splash.png"
+    media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)" />
+
+  <!-- ✅ MANIFEST -->
+  <link rel="manifest" href="/manifest.json" />
+
+  <!-- ✅ PRELOAD CRÍTICO -->
+  <link rel="preload" href="/src/main.jsx" as="script" />
+
+  <!-- ✅ CSS CRÍTICO INLINE (opcional para mejor performance) -->
+  <style>
+    /* Loading inicial minimalista */
+    #root {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .loading-spinner {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      color: white;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- ✅ LOADING INICIAL MEJORADO -->
+  <div id="root">
+    <div class="loading-spinner">
+      <div style="text-align: center;">
+        <div style="
+          width: 50px;
+          height: 50px;
+          border: 3px solid rgba(255,255,255,0.3);
+          border-radius: 50%;
+          border-top-color: white;
+          animation: spin 1s ease-in-out infinite;
+          margin: 0 auto 20px;
+        "></div>
+        <p style="margin: 0; font-size: 16px; font-weight: 500;">Cargando DIMBOX...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ✅ SCRIPT PRINCIPAL -->
   <script type="module" src="/src/main.jsx"></script>
+
+  <!-- ✅ SCRIPT DE CARGA MEJORADO -->
+  <script>
+    // Manejo de errores globales
+    window.addEventListener('error', function (e) {
+      console.error('Error global:', e.error);
+    });
+
+    // Mostrar estado de conexión
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then(registration => {
+        console.log('✅ Service Worker registrado:', registration);
+      });
+    }
+
+    // Animación del spinner
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+    `;
+    document.head.appendChild(style);
+  </script>
 </body>
+
+</html>
