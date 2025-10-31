@@ -1,4 +1,4 @@
-# core/models.py - VERSIÓN ACTUALIZADA CON SISTEMA DE LÍMITES
+# core/models.py - VERSIÓN CORREGIDA
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from decimal import Decimal
@@ -159,11 +159,17 @@ class User(AbstractUser):
 
     def save(self, *args, **kwargs):
         """
-        ✅ MEJORADO: Auto-calcular record_count al guardar
+        ✅ CORREGIDO: Auto-calcular record_count solo después de tener primary key
         """
-        if not self.record_count:
-            self.record_count = self.transactions.count()
+        # Guardar primero para obtener el primary key
+        is_new = self.pk is None
         super().save(*args, **kwargs)
+
+        # Solo calcular record_count después de guardar y si es necesario
+        if is_new and not self.record_count:
+            self.record_count = self.transactions.count()
+            # Actualizar solo el campo record_count para evitar recursión
+            super().save(update_fields=["record_count"])
 
 
 class TransactionType(models.TextChoices):
