@@ -219,6 +219,7 @@ CSRF_TRUSTED_ORIGINS = [
     "https://dimbox-app.firebaseapp.com",  # ✅ AGREGADO
 ]
 
+# ✅ CORREGIDO: Agregar x-request-id a los headers permitidos
 CORS_ALLOW_HEADERS = [
     "accept",
     "accept-encoding",
@@ -228,7 +229,8 @@ CORS_ALLOW_HEADERS = [
     "user-agent",
     "x-csrftoken",
     "x-requested-with",
-    "cache-control",  # ✅ AGREGADO
+    "cache-control",
+    "x-request-id",  # ✅ CORRECCIÓN: Este header estaba faltando
 ]
 
 # ✅ CONFIGURACIÓN ADICIONAL CORS PARA CUENTAS RÁPIDAS
@@ -351,3 +353,4 @@ print(f"✅ DIMBOX Settings Loaded - DEBUG: {DEBUG}")
 print(f"✅ Allowed Hosts: {ALLOWED_HOSTS}")
 print(f"✅ Database: {DATABASES['default']['ENGINE']}")
 print(f"✅ CORS Allowed Origins: {CORS_ALLOWED_ORIGINS}")
+print(f"✅ CORS Allowed Headers: {CORS_ALLOW_HEADERS}")  # ✅ AGREGADO: Para verificar
