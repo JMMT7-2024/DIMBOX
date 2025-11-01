@@ -39,6 +39,15 @@ from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 
+from .models import Product, Invoice, InvoiceItem
+from .serializers import (
+    ProductSerializer,
+    ProductListSerializer,
+    InvoiceSerializer,
+    InvoiceCreateSerializer,
+    InvoiceItemSerializer,
+)
+
 User = get_user_model()
 
 # -------------------------------
@@ -880,17 +889,8 @@ def whoami(request):
 # ✅ VISTAS EMPRESARIALES - PRODUCTOS E INVOICES
 # -------------------------------
 
-from .models import Product, Invoice, InvoiceItem
-from .serializers import (
-    ProductSerializer,
-    ProductListSerializer,
-    InvoiceSerializer,
-    InvoiceCreateSerializer,
-    InvoiceItemSerializer,
-)
 
-
-# 📦 VISTAS DE PRODUCTOS
+# 📦 VISTAS DE PRODUCTOS - CON DEBUG MEJORADO
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
 def products_list_create(request):
@@ -918,13 +918,40 @@ def products_list_create(request):
         serializer = ProductListSerializer(products, many=True)
         return Response(serializer.data)
 
-    # POST - Crear producto
-    serializer = ProductSerializer(data=request.data, context={"request": request})
-    if serializer.is_valid():
-        product = serializer.save()
-        response_serializer = ProductSerializer(product)
-        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    # POST - Crear producto CON DEBUG DETALLADO
+    print(f"🔍 DEBUG products_list_create - User: {user}")
+    print(f"🔍 DEBUG Request data: {request.data}")
+    print(f"🔍 DEBUG Data type: {type(request.data)}")
+
+    try:
+        serializer = ProductSerializer(data=request.data, context={"request": request})
+
+        if serializer.is_valid():
+            print("✅ DEBUG: Serializer válido - Guardando producto...")
+            product = serializer.save()
+            response_serializer = ProductSerializer(product)
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            print(f"❌ DEBUG: Errores del serializer: {serializer.errors}")
+            # ✅ DEVOLVER ERRORES DETALLADOS AL FRONTEND
+            return Response(
+                {
+                    "detail": "Error de validación",
+                    "errors": serializer.errors,
+                    "received_data": request.data,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+    except Exception as e:
+        print(f"🔥 DEBUG: Excepción en products_list_create: {str(e)}")
+        import traceback
+
+        print(f"🔥 DEBUG: Traceback: {traceback.format_exc()}")
+        return Response(
+            {"detail": f"Error interno del servidor: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 
 @api_view(["GET", "PUT", "DELETE"])
@@ -1233,6 +1260,77 @@ def enterprise_dashboard(request):
                 "total_invoices": invoices_stats_data.get("total_invoices", 0),
                 "total_revenue": invoices_stats_data.get("total_amount", 0),
                 "inventory_value": products_stats_data.get("inventory_value", 0),
+            },
+        }
+    )
+
+
+# ✅ ENDPOINT TEMPORAL PARA DEBUG DE VALIDACIÓN
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def debug_product_validation(request):
+    """Endpoint para debug de validación de productos"""
+    print(f"🎯 DEBUG debug_product_validation - Data recibida: {request.data}")
+
+    # Validar campos requeridos manualmente
+    required_fields = ["name", "price"]
+    missing_fields = [field for field in required_fields if field not in request.data]
+
+    if missing_fields:
+        return Response(
+            {
+                "error": "Campos requeridos faltantes",
+                "missing_fields": missing_fields,
+                "received_data": request.data,
+            },
+            status=400,
+        )
+
+    # Validar tipos de datos
+    try:
+        price = float(request.data["price"])
+        if price <= 0:
+            return Response(
+                {
+                    "error": "Precio debe ser mayor a 0",
+                    "received_price": request.data["price"],
+                },
+                status=400,
+            )
+    except (ValueError, TypeError):
+        return Response(
+            {
+                "error": "Precio debe ser un número válido",
+                "received_price": request.data["price"],
+            },
+            status=400,
+        )
+
+    # Validar categoría
+    valid_categories = ["SERVICE", "PRODUCT", "DIGITAL", "OTHER"]
+    category = request.data.get("category", "PRODUCT")
+    if category not in valid_categories:
+        return Response(
+            {
+                "error": "Categoría inválida",
+                "received_category": category,
+                "valid_categories": valid_categories,
+            },
+            status=400,
+        )
+
+    return Response(
+        {
+            "success": True,
+            "message": "Datos válidos",
+            "validated_data": {
+                "name": request.data["name"],
+                "price": float(request.data["price"]),
+                "category": category,
+                "description": request.data.get("description", ""),
+                "stock": int(request.data.get("stock", 0)),
+                "cost": float(request.data["cost"]) if "cost" in request.data else None,
+                "tax_rate": float(request.data.get("tax_rate", 18.0)),
             },
         }
     )
