@@ -1,7 +1,7 @@
-# core/models.py - VERSIÓN CORREGIDA
+# core/models.py - VERSIÓN COMPLETAMENTE CORREGIDA
 from django.db import models
 from django.contrib.auth.models import AbstractUser
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 import json
 
 
@@ -301,20 +301,36 @@ class Product(models.Model):
 
     @property
     def profit_margin(self):
-        """Calcula el margen de ganancia en porcentaje"""
+        """Calcula el margen de ganancia en porcentaje - VERSIÓN CORREGIDA"""
         if self.cost and self.price:
-            return float(((self.price - self.cost) / self.price) * 100)
+            try:
+                cost_decimal = Decimal(str(self.cost))
+                price_decimal = Decimal(str(self.price))
+                if price_decimal > 0:
+                    return float(((price_decimal - cost_decimal) / price_decimal) * 100)
+            except (ValueError, TypeError, InvalidOperation):
+                pass
         return 0.0
 
     @property
     def tax_amount(self):
-        """Calcula el monto del impuesto"""
-        return float((self.price * self.tax_rate) / 100)
+        """Calcula el monto del impuesto - VERSIÓN CORREGIDA"""
+        try:
+            price_decimal = Decimal(str(self.price))
+            tax_rate_decimal = Decimal(str(self.tax_rate))
+            return float((price_decimal * tax_rate_decimal) / Decimal("100"))
+        except (ValueError, TypeError, InvalidOperation):
+            return 0.0
 
     @property
     def price_with_tax(self):
-        """Precio con impuesto incluido"""
-        return float(self.price + self.tax_amount)
+        """Precio con impuesto incluido - VERSIÓN CORREGIDA"""
+        try:
+            price_decimal = Decimal(str(self.price))
+            tax_amount_decimal = Decimal(str(self.tax_amount))
+            return float(price_decimal + tax_amount_decimal)
+        except (ValueError, TypeError, InvalidOperation):
+            return float(self.price)
 
     def clean(self):
         """Validaciones del modelo"""
@@ -448,13 +464,23 @@ class InvoiceItem(models.Model):
 
     @property
     def tax_amount(self):
-        """Monto de impuestos"""
-        return float(self.subtotal * self.tax_rate / 100)
+        """Monto de impuestos - VERSIÓN CORREGIDA"""
+        try:
+            subtotal_decimal = Decimal(str(self.subtotal))
+            tax_rate_decimal = Decimal(str(self.tax_rate))
+            return float((subtotal_decimal * tax_rate_decimal) / Decimal("100"))
+        except (ValueError, TypeError, InvalidOperation):
+            return 0.0
 
     @property
     def total(self):
-        """Total con impuestos"""
-        return float(self.subtotal + self.tax_amount)
+        """Total con impuestos - VERSIÓN CORREGIDA"""
+        try:
+            subtotal_decimal = Decimal(str(self.subtotal))
+            tax_amount_decimal = Decimal(str(self.tax_amount))
+            return float(subtotal_decimal + tax_amount_decimal)
+        except (ValueError, TypeError, InvalidOperation):
+            return float(self.subtotal)
 
     def clean(self):
         """Validaciones"""
