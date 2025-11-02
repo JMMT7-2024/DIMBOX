@@ -346,14 +346,38 @@ class Product(models.Model):
             raise ValidationError("El stock no puede ser negativo")
 
     def save(self, *args, **kwargs):
-        """Guardar con validaciones"""
+        """✅ CORREGIDO: Guardar con validaciones y generación de SKU robusta"""
+        # Validar primero
         self.clean()
 
-        # Generar SKU automático si no se proporciona
+        # ✅ GENERACIÓN DE SKU MEJORADA
         if not self.sku:
-            last_product = Product.objects.filter(user=self.user).last()
-            next_id = (last_product.id + 1) if last_product else 1
-            self.sku = f"PROD-{self.user.id}-{next_id:04d}"
+            try:
+                # Solo generar SKU si el producto ya tiene usuario
+                if self.user and self.user.id:
+                    # Buscar el último producto del mismo usuario
+                    last_product = (
+                        Product.objects.filter(user=self.user).order_by("-id").first()
+                    )
+                    if last_product and last_product.id:
+                        next_id = last_product.id + 1
+                    else:
+                        next_id = 1
+
+                    self.sku = f"PROD-{self.user.id}-{next_id:04d}"
+                    print(f"🔧 [MODEL] SKU generado: {self.sku}")
+                else:
+                    # Fallback si no hay usuario
+                    import time
+
+                    self.sku = f"PROD-TEMP-{int(time.time())}"
+                    print(f"⚠️ [MODEL] SKU temporal generado: {self.sku}")
+            except Exception as e:
+                # Fallback final
+                import time
+
+                self.sku = f"PROD-ERR-{int(time.time())}"
+                print(f"🔥 [MODEL] Error generando SKU, usando fallback: {self.sku}")
 
         super().save(*args, **kwargs)
 

@@ -247,11 +247,35 @@ class ProductSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
-        """Crear producto asignando automáticamente el usuario"""
+        """✅ CORRECCIÓN CRÍTICA: Asignar usuario del contexto"""
         request = self.context.get("request")
+        print(f"🔍 [SERIALIZER CREATE] Request en contexto: {request is not None}")
+        print(
+            f"🔍 [SERIALIZER CREATE] User en request: {getattr(request, 'user', None) if request else None}"
+        )
+
         if request and hasattr(request, "user"):
             validated_data["user"] = request.user
-        return super().create(validated_data)
+            print(f"✅ [SERIALIZER CREATE] Usuario asignado: {request.user.username}")
+        else:
+            print("❌ [SERIALIZER CREATE] No hay request o usuario en el contexto")
+            # Fallback: intentar obtener usuario de otra manera
+            if "user" not in validated_data:
+                raise serializers.ValidationError(
+                    "No se pudo determinar el usuario para el producto"
+                )
+
+        try:
+            # Llamar al create del padre
+            instance = super().create(validated_data)
+            print(f"✅ [SERIALIZER CREATE] Producto creado exitosamente: {instance.id}")
+            return instance
+        except Exception as e:
+            print(f"🔥 [SERIALIZER CREATE] Error al guardar: {str(e)}")
+            import traceback
+
+            print(f"🔥 [SERIALIZER CREATE] Traceback: {traceback.format_exc()}")
+            raise e
 
 
 class ProductListSerializer(serializers.ModelSerializer):

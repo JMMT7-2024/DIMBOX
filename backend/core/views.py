@@ -899,6 +899,8 @@ def products_list_create(request):
     POST: Crea un nuevo producto
     """
     user = request.user
+    print(f"🔍 DEBUG products_list_create - User: {user}")
+    print(f"🔍 DEBUG Request method: {request.method}")
 
     if request.method == "GET":
         # Filtros opcionales
@@ -919,35 +921,69 @@ def products_list_create(request):
         return Response(serializer.data)
 
     # POST - Crear producto CON DEBUG DETALLADO
-    print(f"🔍 DEBUG products_list_create - User: {user}")
-    print(f"🔍 DEBUG Request data: {request.data}")
-    print(f"🔍 DEBUG Data type: {type(request.data)}")
+    print("🎯 [BACKEND DEBUG] === INICIANDO CREACIÓN DE PRODUCTO ===")
+    print(f"🔍 [BACKEND DEBUG] Usuario autenticado: {user.id} - {user.username}")
+    print(f"🔍 [BACKEND DEBUG] Datos recibidos: {request.data}")
+    print(f"🔍 [BACKEND DEBUG] Request type: {type(request)}")
+    print(f"🔍 [BACKEND DEBUG] Request tiene user: {hasattr(request, 'user')}")
 
     try:
-        serializer = ProductSerializer(data=request.data, context={"request": request})
+        # ✅ CORRECCIÓN: Pasar el contexto EXPLÍCITAMENTE
+        serializer_context = {"request": request}
+        print(f"🔍 [BACKEND DEBUG] Contexto del serializer: {serializer_context}")
+
+        serializer = ProductSerializer(data=request.data, context=serializer_context)
+
+        print("🔍 [BACKEND DEBUG] Serializer creado, verificando validez...")
 
         if serializer.is_valid():
-            print("✅ DEBUG: Serializer válido - Guardando producto...")
-            product = serializer.save()
-            response_serializer = ProductSerializer(product)
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+            print("✅ [BACKEND DEBUG] Serializer VÁLIDO - Procediendo a guardar...")
+            try:
+                product = serializer.save()
+                print("🎉 [BACKEND DEBUG] PRODUCTO CREADO EXITOSAMENTE:")
+                print(f"   - ID: {product.id}")
+                print(f"   - Nombre: {product.name}")
+                print(f"   - SKU: {getattr(product, 'sku', 'N/A')}")
+                print(
+                    f"   - Usuario: {product.user.username if product.user else 'N/A'}"
+                )
+
+                # Serializar respuesta
+                response_serializer = ProductSerializer(product)
+                return Response(
+                    response_serializer.data, status=status.HTTP_201_CREATED
+                )
+
+            except Exception as save_error:
+                print(
+                    f"🔥 [BACKEND DEBUG] ERROR al guardar producto: {str(save_error)}"
+                )
+                import traceback
+
+                print("🔥 [BACKEND DEBUG] Traceback completo:")
+                print(traceback.format_exc())
+                return Response(
+                    {"detail": f"Error interno al guardar: {str(save_error)}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
         else:
-            print(f"❌ DEBUG: Errores del serializer: {serializer.errors}")
-            # ✅ DEVOLVER ERRORES DETALLADOS AL FRONTEND
+            print(
+                f"❌ [BACKEND DEBUG] Serializer INVÁLIDO - Errores: {serializer.errors}"
+            )
             return Response(
                 {
-                    "detail": "Error de validación",
+                    "detail": "Error de validación en los datos",
                     "errors": serializer.errors,
-                    "received_data": request.data,
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
     except Exception as e:
-        print(f"🔥 DEBUG: Excepción en products_list_create: {str(e)}")
+        print(f"💥 [BACKEND DEBUG] EXCEPCIÓN GENERAL en products_list_create: {str(e)}")
         import traceback
 
-        print(f"🔥 DEBUG: Traceback: {traceback.format_exc()}")
+        print("💥 [BACKEND DEBUG] Traceback completo:")
+        print(traceback.format_exc())
         return Response(
             {"detail": f"Error interno del servidor: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
