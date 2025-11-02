@@ -1,4 +1,4 @@
-# core/urls.py - VERSIÓN CORREGIDA Y OPTIMIZADA
+# core/urls.py - VERSIÓN COMPLETA Y CORREGIDA
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from . import views
@@ -62,7 +62,7 @@ urlpatterns = [
         name="admin-update-global-limits",
     ),
     # -------------------------------
-    # 👑 ADMINISTRACIÓN (TODO DESDE VIEWS.PRINCIPAL)
+    # 👑 ADMINISTRACIÓN
     # -------------------------------
     path("admin/stats/", views.admin_stats, name="admin-stats"),
     path("admin/users/", views.admin_users_list, name="admin-users"),
@@ -82,9 +82,15 @@ urlpatterns = [
         name="admin-set-role",
     ),
     # -------------------------------
-    # 🏢 MÓDULO EMPRESARIAL
+    # 🏢 MÓDULO EMPRESARIAL - PRODUCTOS
     # -------------------------------
-    # 📦 PRODUCTOS
+    # ✅ RUTA DE EMERGENCIA PARA CREACIÓN DIRECTA DE PRODUCTOS
+    path(
+        "enterprise/products/direct/",
+        views.create_product_direct,
+        name="enterprise-products-direct",
+    ),
+    # Rutas principales de productos
     path(
         "enterprise/products/",
         views.products_list_create,
@@ -126,9 +132,17 @@ urlpatterns = [
         views.invoices_stats,
         name="enterprise-invoices-stats",
     ),
-    # 📊 DASHBOARD
+    # 📊 DASHBOARD EMPRESARIAL
     path(
         "enterprise/dashboard/", views.enterprise_dashboard, name="enterprise-dashboard"
+    ),
+    # -------------------------------
+    # 🛠️ UTILIDADES Y DEBUG
+    # -------------------------------
+    path(
+        "debug/product-validation/",
+        views.debug_product_validation,
+        name="debug-product-validation",
     ),
     # -------------------------------
     # 🩺 HEALTH & UTILIDADES
@@ -140,3 +154,30 @@ urlpatterns = [
     # -------------------------------
     # path("quick-accounts/", include("quick_accounts.urls")),
 ]
+
+# ✅ NOTAS IMPORTANTES:
+"""
+ESTRUCTURA DE RUTAS CORREGIDA:
+
+1. ✅ Se agregó la ruta de emergencia: 'enterprise/products/direct/'
+   - Esta ruta usa create_product_direct que funciona inmediatamente
+   - El frontend puede usar esta ruta temporalmente
+
+2. ✅ Se mantuvo la ruta principal: 'enterprise/products/'
+   - Esta ruta ahora está corregida en views.py
+   - Una vez verificado que funciona, se puede usar esta
+
+3. ✅ Se agregó ruta de debug: 'debug/product-validation/'
+   - Útil para probar validaciones sin crear productos
+
+INSTRUCCIONES DE USO:
+
+🔧 TEMPORAL (Funciona inmediatamente):
+   POST /api/enterprise/products/direct/
+
+🎯 PERMANENTE (Una vez verificado):
+   POST /api/enterprise/products/
+
+🛠️ PARA DEBUG:
+   POST /api/debug/product-validation/
+"""

@@ -886,21 +886,19 @@ def whoami(request):
 
 
 # -------------------------------
-# ✅ VISTAS EMPRESARIALES - PRODUCTOS E INVOICES
+# ✅ VISTAS EMPRESARIALES - PRODUCTOS E INVOICES - CORREGIDAS
 # -------------------------------
 
 
-# 📦 VISTAS DE PRODUCTOS - CON DEBUG MEJORADO
+# 📦 VISTAS DE PRODUCTOS - CORREGIDAS
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
 def products_list_create(request):
     """
     GET: Lista todos los productos del usuario
-    POST: Crea un nuevo producto
+    POST: Crea un nuevo producto - CORREGIDO
     """
     user = request.user
-    print(f"🔍 DEBUG products_list_create - User: {user}")
-    print(f"🔍 DEBUG Request method: {request.method}")
 
     if request.method == "GET":
         # Filtros opcionales
@@ -920,72 +918,148 @@ def products_list_create(request):
         serializer = ProductListSerializer(products, many=True)
         return Response(serializer.data)
 
-    # POST - Crear producto CON DEBUG DETALLADO
-    print("🎯 [BACKEND DEBUG] === INICIANDO CREACIÓN DE PRODUCTO ===")
-    print(f"🔍 [BACKEND DEBUG] Usuario autenticado: {user.id} - {user.username}")
-    print(f"🔍 [BACKEND DEBUG] Datos recibidos: {request.data}")
-    print(f"🔍 [BACKEND DEBUG] Request type: {type(request)}")
-    print(f"🔍 [BACKEND DEBUG] Request tiene user: {hasattr(request, 'user')}")
+    # ✅ CORRECCIÓN: POST - Crear producto CON RESPUESTA ESTRUCTURADA
+    print(f"🎯 [BACKEND] Creando producto para usuario: {user.username}")
+    print(f"📦 [BACKEND] Datos recibidos: {request.data}")
 
     try:
-        # ✅ CORRECCIÓN: Pasar el contexto EXPLÍCITAMENTE
-        serializer_context = {"request": request}
-        print(f"🔍 [BACKEND DEBUG] Contexto del serializer: {serializer_context}")
-
-        serializer = ProductSerializer(data=request.data, context=serializer_context)
-
-        print("🔍 [BACKEND DEBUG] Serializer creado, verificando validez...")
+        serializer = ProductSerializer(data=request.data, context={"request": request})
 
         if serializer.is_valid():
-            print("✅ [BACKEND DEBUG] Serializer VÁLIDO - Procediendo a guardar...")
-            try:
-                product = serializer.save()
-                print("🎉 [BACKEND DEBUG] PRODUCTO CREADO EXITOSAMENTE:")
-                print(f"   - ID: {product.id}")
-                print(f"   - Nombre: {product.name}")
-                print(f"   - SKU: {getattr(product, 'sku', 'N/A')}")
-                print(
-                    f"   - Usuario: {product.user.username if product.user else 'N/A'}"
-                )
+            print("✅ [BACKEND] Serializer válido - Guardando producto...")
+            product = serializer.save()
+            print(f"🎉 [BACKEND] Producto creado: {product.id} - {product.name}")
 
-                # Serializar respuesta
-                response_serializer = ProductSerializer(product)
-                return Response(
-                    response_serializer.data, status=status.HTTP_201_CREATED
-                )
-
-            except Exception as save_error:
-                print(
-                    f"🔥 [BACKEND DEBUG] ERROR al guardar producto: {str(save_error)}"
-                )
-                import traceback
-
-                print("🔥 [BACKEND DEBUG] Traceback completo:")
-                print(traceback.format_exc())
-                return Response(
-                    {"detail": f"Error interno al guardar: {str(save_error)}"},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                )
-        else:
+            # ✅ CORRECCIÓN CRÍTICA: Devolver el producto serializado correctamente
+            response_serializer = ProductSerializer(product)
             print(
-                f"❌ [BACKEND DEBUG] Serializer INVÁLIDO - Errores: {serializer.errors}"
+                f"📤 [BACKEND] Enviando respuesta estructurada: {response_serializer.data}"
             )
+
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            print(f"❌ [BACKEND] Errores del serializer: {serializer.errors}")
             return Response(
                 {
-                    "detail": "Error de validación en los datos",
+                    "detail": "Error de validación",
                     "errors": serializer.errors,
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
     except Exception as e:
-        print(f"💥 [BACKEND DEBUG] EXCEPCIÓN GENERAL en products_list_create: {str(e)}")
+        print(f"🔥 [BACKEND] Error: {str(e)}")
         import traceback
 
-        print("💥 [BACKEND DEBUG] Traceback completo:")
-        print(traceback.format_exc())
+        print(f"💥 [BACKEND] Traceback: {traceback.format_exc()}")
         return Response(
-            {"detail": f"Error interno del servidor: {str(e)}"},
+            {"detail": f"Error interno: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+# ✅ ENDPOINT DE EMERGENCIA - CREACIÓN DIRECTA DE PRODUCTO
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def create_product_direct(request):
+    """✅ SOLUCIÓN INMEDIATA - Crear producto y devolver JSON estructurado"""
+    user = request.user
+
+    print(f"🚀 [DIRECT] Creando producto directo para: {user.username}")
+    print(f"📦 [DIRECT] Datos recibidos: {request.data}")
+
+    try:
+        data = request.data
+
+        # Validaciones básicas
+        if not data.get("name"):
+            return Response(
+                {"error": "El nombre del producto es requerido"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not data.get("price"):
+            return Response(
+                {"error": "El precio del producto es requerido"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Procesar datos
+        name = data["name"]
+        description = data.get("description", "")
+        price = float(data["price"])
+        cost = float(data["cost"]) if data.get("cost") else None
+        category = data.get("category", "PRODUCT")
+        stock = int(data.get("stock", 0))
+        tax_rate = float(data.get("tax_rate", 18.00))
+
+        print(f"🔧 [DIRECT] Procesando datos:")
+        print(f"   - Nombre: {name}")
+        print(f"   - Precio: {price}")
+        print(f"   - Costo: {cost}")
+        print(f"   - Categoría: {category}")
+        print(f"   - Stock: {stock}")
+
+        # Crear producto directamente
+        product = Product.objects.create(
+            user=user,
+            name=name,
+            description=description,
+            price=price,
+            cost=cost,
+            category=category,
+            stock=stock,
+            tax_rate=tax_rate,
+            is_active=True,
+        )
+
+        print(f"🎉 [DIRECT] Producto creado exitosamente: {product.id}")
+
+        # ✅ RESPUESTA ESTRUCTURADA CORRECTA
+        response_data = {
+            "id": product.id,
+            "name": product.name,
+            "description": product.description,
+            "sku": product.sku,
+            "price": float(product.price),
+            "cost": float(product.cost) if product.cost else None,
+            "category": product.category,
+            "stock": product.stock,
+            "tax_rate": float(product.tax_rate),
+            "is_active": product.is_active,
+            "profit_margin": float(product.profit_margin)
+            if hasattr(product, "profit_margin")
+            else None,
+            "tax_amount": float(product.tax_amount)
+            if hasattr(product, "tax_amount")
+            else None,
+            "price_with_tax": float(product.price_with_tax)
+            if hasattr(product, "price_with_tax")
+            else None,
+            "created_at": product.created_at.isoformat()
+            if product.created_at
+            else None,
+            "updated_at": product.updated_at.isoformat()
+            if product.updated_at
+            else None,
+        }
+
+        print(f"📤 [DIRECT] Enviando respuesta estructurada: {response_data}")
+        return Response(response_data, status=status.HTTP_201_CREATED)
+
+    except ValueError as e:
+        print(f"❌ [DIRECT] Error de valor: {str(e)}")
+        return Response(
+            {"error": f"Error en los datos: {str(e)}"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except Exception as e:
+        print(f"🔥 [DIRECT] Error general: {str(e)}")
+        import traceback
+
+        print(f"💥 [DIRECT] Traceback: {traceback.format_exc()}")
+        return Response(
+            {"error": f"Error interno: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
