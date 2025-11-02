@@ -301,35 +301,40 @@ class Product(models.Model):
 
     @property
     def profit_margin(self):
-        """Calcula el margen de ganancia en porcentaje - VERSIÓN CORREGIDA"""
+        """✅ CORREGIDO: Calcula el margen de ganancia en porcentaje"""
         if self.cost and self.price:
             try:
-                cost_decimal = Decimal(str(self.cost))
-                price_decimal = Decimal(str(self.price))
-                if price_decimal > 0:
-                    return float(((price_decimal - cost_decimal) / price_decimal) * 100)
-            except (ValueError, TypeError, InvalidOperation):
+                # Convertir a float para evitar problemas de Decimal
+                cost_float = float(self.cost)
+                price_float = float(self.price)
+                if price_float > 0:
+                    margin = ((price_float - cost_float) / price_float) * 100
+                    return round(margin, 2)
+            except (ValueError, TypeError, AttributeError):
                 pass
         return 0.0
 
     @property
     def tax_amount(self):
-        """Calcula el monto del impuesto - VERSIÓN CORREGIDA"""
+        """✅ CORREGIDO: Calcula el monto del impuesto"""
         try:
-            price_decimal = Decimal(str(self.price))
-            tax_rate_decimal = Decimal(str(self.tax_rate))
-            return float((price_decimal * tax_rate_decimal) / Decimal("100"))
-        except (ValueError, TypeError, InvalidOperation):
+            # Convertir a float para evitar problemas de Decimal
+            price_float = float(self.price)
+            tax_rate_float = float(self.tax_rate)
+            tax = (price_float * tax_rate_float) / 100.0
+            return round(tax, 2)
+        except (ValueError, TypeError, AttributeError):
             return 0.0
 
     @property
     def price_with_tax(self):
-        """Precio con impuesto incluido - VERSIÓN CORREGIDA"""
+        """✅ CORREGIDO: Precio con impuesto incluido"""
         try:
-            price_decimal = Decimal(str(self.price))
-            tax_amount_decimal = Decimal(str(self.tax_amount))
-            return float(price_decimal + tax_amount_decimal)
-        except (ValueError, TypeError, InvalidOperation):
+            price_float = float(self.price)
+            tax_amount_float = float(self.tax_amount)
+            total = price_float + tax_amount_float
+            return round(total, 2)
+        except (ValueError, TypeError, AttributeError):
             return float(self.price)
 
     def clean(self):
@@ -365,19 +370,16 @@ class Product(models.Model):
                         next_id = 1
 
                     self.sku = f"PROD-{self.user.id}-{next_id:04d}"
-                    print(f"🔧 [MODEL] SKU generado: {self.sku}")
                 else:
                     # Fallback si no hay usuario
                     import time
 
                     self.sku = f"PROD-TEMP-{int(time.time())}"
-                    print(f"⚠️ [MODEL] SKU temporal generado: {self.sku}")
             except Exception as e:
                 # Fallback final
                 import time
 
                 self.sku = f"PROD-ERR-{int(time.time())}"
-                print(f"🔥 [MODEL] Error generando SKU, usando fallback: {self.sku}")
 
         super().save(*args, **kwargs)
 
@@ -488,22 +490,25 @@ class InvoiceItem(models.Model):
 
     @property
     def tax_amount(self):
-        """Monto de impuestos - VERSIÓN CORREGIDA"""
+        """✅ CORREGIDO: Monto de impuestos"""
         try:
-            subtotal_decimal = Decimal(str(self.subtotal))
-            tax_rate_decimal = Decimal(str(self.tax_rate))
-            return float((subtotal_decimal * tax_rate_decimal) / Decimal("100"))
-        except (ValueError, TypeError, InvalidOperation):
+            # Convertir a float para evitar problemas de Decimal
+            subtotal_float = float(self.subtotal)
+            tax_rate_float = float(self.tax_rate)
+            tax = (subtotal_float * tax_rate_float) / 100.0
+            return round(tax, 2)
+        except (ValueError, TypeError, AttributeError):
             return 0.0
 
     @property
     def total(self):
-        """Total con impuestos - VERSIÓN CORREGIDA"""
+        """✅ CORREGIDO: Total con impuestos"""
         try:
-            subtotal_decimal = Decimal(str(self.subtotal))
-            tax_amount_decimal = Decimal(str(self.tax_amount))
-            return float(subtotal_decimal + tax_amount_decimal)
-        except (ValueError, TypeError, InvalidOperation):
+            subtotal_float = float(self.subtotal)
+            tax_amount_float = float(self.tax_amount)
+            total = subtotal_float + tax_amount_float
+            return round(total, 2)
+        except (ValueError, TypeError, AttributeError):
             return float(self.subtotal)
 
     def clean(self):
