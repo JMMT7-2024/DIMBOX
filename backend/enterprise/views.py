@@ -1,4 +1,4 @@
-# /root/DIMBOX/backend/enterprise/views.py
+import logging
 from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -9,6 +9,8 @@ from django.utils.translation import gettext_lazy as _
 
 from .models import Client
 from .serializers import ClientSerializer, ClientListSerializer, ClientCreateSerializer
+
+logger = logging.getLogger(__name__)
 
 
 class ClientViewSet(viewsets.ModelViewSet):
@@ -44,6 +46,26 @@ class ClientViewSet(viewsets.ModelViewSet):
         elif self.action == "create":
             return ClientCreateSerializer
         return ClientSerializer
+
+    def create(self, request, *args, **kwargs):
+        """Sobrescribir create para agregar logging"""
+        logger.info(f"📥 CREATE CLIENT - Datos recibidos: {request.data}")
+        logger.info(f"📥 CREATE CLIENT - Usuario: {request.user}")
+        logger.info(
+            f"📥 CREATE CLIENT - Empresa del usuario: {getattr(request.user, 'enterprise', 'No tiene empresa')}"
+        )
+
+        try:
+            response = super().create(request, *args, **kwargs)
+            logger.info(f"✅ CREATE CLIENT - Éxito: {response.data}")
+            return response
+        except Exception as e:
+            logger.error(f"❌ CREATE CLIENT - Error: {str(e)}", exc_info=True)
+            # También log el traceback completo
+            import traceback
+
+            logger.error(f"❌ CREATE CLIENT - Traceback: {traceback.format_exc()}")
+            raise
 
     def perform_destroy(self, instance):
         """Soft delete"""

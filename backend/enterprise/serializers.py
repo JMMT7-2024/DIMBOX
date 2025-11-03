@@ -1,4 +1,3 @@
-# /root/DIMBOX/backend/enterprise/serializers.py
 from rest_framework import serializers
 from django.utils.translation import gettext_lazy as _
 from .models import Client
@@ -97,3 +96,29 @@ class ClientCreateSerializer(serializers.ModelSerializer):
             "address",
             "is_taxpayer",
         ]
+
+    def create(self, validated_data):
+        """Asignar empresa y usuario automáticamente"""
+        # Obtener la empresa del usuario autenticado
+        user = self.context["request"].user
+        if hasattr(user, "enterprise") and user.enterprise:
+            validated_data["enterprise"] = user.enterprise
+            validated_data["created_by"] = user
+        else:
+            raise serializers.ValidationError(
+                _("El usuario no tiene una empresa asignada")
+            )
+
+        return super().create(validated_data)
+
+    def validate_document_number(self, value):
+        """Validación del documento"""
+        document_type = self.initial_data.get("document_type")
+
+        if document_type == Client.DocumentType.RUC and len(value) != 11:
+            raise serializers.ValidationError(_("El RUC debe tener 11 dígitos"))
+
+        elif document_type == Client.DocumentType.DNI and len(value) != 8:
+            raise serializers.ValidationError(_("El DNI debe tener 8 dígitos"))
+
+        return value.strip()
