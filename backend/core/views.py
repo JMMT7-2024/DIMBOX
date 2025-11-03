@@ -1,3 +1,4 @@
+# /root/DIMBOX/backend/core/views.py - VERSIÓN CORREGIDA
 from __future__ import annotations
 
 from datetime import datetime
@@ -1070,7 +1071,7 @@ def product_detail(request, pk):
     """
     GET: Obtener detalle de producto
     PUT: Actualizar producto
-    DELETE: Eliminar producto (soft delete)
+    DELETE: ✅ CORREGIDO - Eliminar producto (HARD DELETE)
     """
     user = request.user
     try:
@@ -1094,11 +1095,23 @@ def product_detail(request, pk):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == "DELETE":
-        # Soft delete - marcar como inactivo
-        product.is_active = False
-        product.save()
+        # ✅ CORRECCIÓN CRÍTICA: HARD DELETE - Eliminación real de la base de datos
+        print(
+            f"🗑️ [BACKEND DELETE] Eliminando producto ID: {product.id} - {product.name}"
+        )
+
+        # Guardar información para el log antes de eliminar
+        product_id = product.id
+        product_name = product.name
+
+        # ✅ ELIMINACIÓN REAL
+        product.delete()
+
+        print(f"✅ [BACKEND DELETE] Producto {product_id} eliminado permanentemente")
+
         return Response(
-            {"detail": "Producto eliminado correctamente"}, status=status.HTTP_200_OK
+            {"detail": "Producto eliminado permanentemente"},
+            status=status.HTTP_204_NO_CONTENT,  # ✅ Status correcto para DELETE
         )
 
 
