@@ -1,7 +1,7 @@
 from django.db import models
 from django.core.validators import RegexValidator
 from django.utils.translation import gettext_lazy as _
-from core.models import User  # Solo importar User desde core
+from core.models import User
 
 
 class Enterprise(models.Model):
@@ -50,9 +50,9 @@ class Client(models.Model):
         INDIVIDUAL = "INDIVIDUAL", _("Persona Natural")
         COMPANY = "COMPANY", _("Persona Jurídica")
 
-    # Relación con empresa (usando el modelo que definimos arriba)
+    # Relación con empresa
     enterprise = models.ForeignKey(
-        Enterprise,  # Ahora usa el modelo local
+        Enterprise,
         on_delete=models.CASCADE,
         related_name="clients",
         verbose_name=_("Empresa"),
@@ -103,7 +103,6 @@ class Client(models.Model):
 
     # Estados
     is_active = models.BooleanField(default=True, verbose_name=_("Activo"))
-
     is_taxpayer = models.BooleanField(default=True, verbose_name=_("Es Contribuyente"))
 
     # Metadata

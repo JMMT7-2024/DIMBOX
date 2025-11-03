@@ -7,10 +7,34 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
-from .models import Client
-from .serializers import ClientSerializer, ClientListSerializer, ClientCreateSerializer
+from .models import Client, Enterprise
+from .serializers import (
+    ClientSerializer,
+    ClientListSerializer,
+    ClientCreateSerializer,
+    EnterpriseSerializer,
+)
 
 logger = logging.getLogger(__name__)
+
+
+class EnterpriseViewSet(viewsets.ModelViewSet):
+    """ViewSet para que usuarios ENTERPRISE gestionen su empresa"""
+
+    permission_classes = [IsAuthenticated]
+    serializer_class = EnterpriseSerializer
+    http_method_names = ["get", "put", "patch"]  # Solo permitir edición, no creación
+
+    def get_queryset(self):
+        """Un usuario ENTERPRISE solo puede ver/editar su propia empresa"""
+        user = self.request.user
+        if user.plan_type == "ENTERPRISE" and hasattr(user, "enterprise"):
+            return Enterprise.objects.filter(id=user.enterprise.id)
+        return Enterprise.objects.none()
+
+    def get_object(self):
+        """Siempre retorna la empresa del usuario"""
+        return self.request.user.enterprise
 
 
 class ClientViewSet(viewsets.ModelViewSet):
@@ -31,12 +55,16 @@ class ClientViewSet(viewsets.ModelViewSet):
     ordering = ["name"]
 
     def get_queryset(self):
-        """Solo clientes de la empresa del usuario"""
+        """Solo clientes de la empresa del usuario ENTERPRISE"""
         user = self.request.user
-        if hasattr(user, "enterprise") and user.enterprise:
+        if (
+            user.plan_type == "ENTERPRISE"
+            and hasattr(user, "enterprise")
+            and user.enterprise
+        ):
             return Client.objects.filter(
                 enterprise=user.enterprise, is_active=True
-            ).select_related("created_by")
+            ).select_related("created_by", "enterprise")
         return Client.objects.none()
 
     def get_serializer_class(self):
@@ -48,12 +76,24 @@ class ClientViewSet(viewsets.ModelViewSet):
         return ClientSerializer
 
     def create(self, request, *args, **kwargs):
-        """Sobrescribir create para agregar logging"""
-        logger.info(f"📥 CREATE CLIENT - Datos recibidos: {request.data}")
-        logger.info(f"📥 CREATE CLIENT - Usuario: {request.user}")
+        """Sobrescribir create para agregar logging y validaciones"""
+        logger.info(f"📥 CREATE CLIENT - Usuario: {request.user.email}")
+        logger.info(f"📥 CREATE CLIENT - Plan: {request.user.plan_type}")
         logger.info(
-            f"📥 CREATE CLIENT - Empresa del usuario: {getattr(request.user, 'enterprise', 'No tiene empresa')}"
+            f"📥 CREATE CLIENT - Tiene empresa: {hasattr(request.user, 'enterprise')}"
         )
+
+        if hasattr(request.user, "enterprise"):
+            logger.info(f"📥 CREATE CLIENT - Empresa: {request.user.enterprise.name}")
+
+        logger.info(f"📥 CREATE CLIENT - Datos: {request.data}")
+
+        # Validar que el usuario es ENTERPRISE
+        if request.user.plan_type != "ENTERPRISE":
+            return Response(
+                {"error": _("Tu plan no incluye la gestión de clientes empresariales")},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         try:
             response = super().create(request, *args, **kwargs)
@@ -61,10 +101,6 @@ class ClientViewSet(viewsets.ModelViewSet):
             return response
         except Exception as e:
             logger.error(f"❌ CREATE CLIENT - Error: {str(e)}", exc_info=True)
-            # También log el traceback completo
-            import traceback
-
-            logger.error(f"❌ CREATE CLIENT - Traceback: {traceback.format_exc()}")
             raise
 
     def perform_destroy(self, instance):
@@ -75,6 +111,12 @@ class ClientViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"])
     def search(self, request):
         """Búsqueda rápida para autocompletado"""
+        # Validar plan
+        if request.user.plan_type != "ENTERPRISE":
+            return Response(
+                {"error": _("Acceso no autorizado")}, status=status.HTTP_403_FORBIDDEN
+            )
+
         query = request.query_params.get("q", "").strip()
         limit = int(request.query_params.get("limit", 10))
 
@@ -96,6 +138,12 @@ class ClientViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"])
     def stats(self, request):
         """Estadísticas básicas de clientes"""
+        # Validar plan
+        if request.user.plan_type != "ENTERPRISE":
+            return Response(
+                {"error": _("Acceso no autorizado")}, status=status.HTTP_403_FORBIDDEN
+            )
+
         queryset = self.get_queryset()
 
         stats = {
