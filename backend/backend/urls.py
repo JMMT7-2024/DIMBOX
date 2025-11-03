@@ -1,4 +1,4 @@
-# backend/backend/urls.py - ARCHIVO PRINCIPAL CORREGIDO
+# backend/backend/urls.py - ARCHIVO PRINCIPAL ACTUALIZADO
 from django.contrib import admin
 from django.urls import path, include
 from django.http import HttpResponse
@@ -15,6 +15,7 @@ def home(request):
                 .container { max-width: 800px; margin: 0 auto; }
                 .endpoint { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 5px; }
                 code { background: #eee; padding: 2px 5px; border-radius: 3px; }
+                .new { background: #e8f5e8; border-left: 4px solid #4CAF50; }
             </style>
         </head>
         <body>
@@ -25,6 +26,11 @@ def home(request):
                 <div class="endpoint">
                     <strong>📊 API Principal:</strong> <a href="/api/">/api/</a>
                     <br><small>Incluye autenticación, transacciones, límites y administración</small>
+                </div>
+                
+                <div class="endpoint new">
+                    <strong>🏢 Módulo Empresarial:</strong> <a href="/api/enterprise/">/api/enterprise/</a>
+                    <br><small>✅ NUEVO: Gestión de clientes, productos y facturación</small>
                 </div>
                 
                 <div class="endpoint">
@@ -45,8 +51,18 @@ def home(request):
                     <li><code>GET /api/user/usage/</code> - Sistema de límites</li>
                     <li><code>GET /api/admin/stats/</code> - Panel de administración</li>
                 </ul>
+
+                <h3>📦 Endpoints Empresariales (NUEVOS):</h3>
+                <ul>
+                    <li><code>GET /api/enterprise/clients/</code> - Gestión de clientes</li>
+                    <li><code>POST /api/enterprise/clients/</code> - Crear cliente</li>
+                    <li><code>GET /api/enterprise/clients/search/?q=term</code> - Búsqueda de clientes</li>
+                    <li><code>GET /api/enterprise/clients/stats/</code> - Estadísticas</li>
+                    <li><em>Más endpoints en desarrollo...</em></li>
+                </ul>
                 
                 <p><em>✅ El despliegue se ha completado exitosamente</em></p>
+                <p><em>🚀 Módulo empresarial activo y funcionando</em></p>
             </div>
         </body>
     </html>
@@ -58,6 +74,8 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     # API principal - INCLUYE todas las URLs de la app core
     path("api/", include("core.urls")),
+    # ✅ NUEVO: Módulo empresarial
+    path("api/enterprise/", include("enterprise.urls")),
     # Página de inicio
     path("", home, name="home"),
     # Redirección para favicon.ico u otros archivos comunes

@@ -1,3 +1,4 @@
+# backend/backend/settings.py - ACTUALIZADO CON ENTERPRISE
 import os
 from pathlib import Path
 import dj_database_url  # Make sure this is imported
@@ -38,10 +39,11 @@ INSTALLED_APPS = [
     "corsheaders",
     "rest_framework",
     "rest_framework_simplejwt",
+    "django_filters",  # ✅ AGREGADO: Para filtros en API empresarial
     # Own Apps
     "core",
-    # ✅ NUEVA APP: Cuentas Rápidas
     "quick_accounts",
+    "enterprise",  # ✅ NUEVA APP: Módulo empresarial
 ]
 
 # --------- Middleware (Ordered and Corrected!) ----------
@@ -108,6 +110,12 @@ REST_FRAMEWORK = {
     # ✅ AGREGADO: Configuración de paginación global
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
+    # ✅ AGREGADO: Filtros para módulo empresarial
+    "DEFAULT_FILTER_BACKENDS": [
+        "django_filters.rest_framework.DjangoFilterBackend",
+        "rest_framework.filters.SearchFilter",
+        "rest_framework.filters.OrderingFilter",
+    ],
 }
 
 # ✅ CONFIGURACIÓN JWT MEJORADA
@@ -291,6 +299,11 @@ LOGGING = {
             "level": "DEBUG" if DEBUG else "INFO",
             "propagate": False,
         },
+        "enterprise": {  # ✅ AGREGADO: Logger específico para módulo empresarial
+            "handlers": ["console"],
+            "level": "DEBUG" if DEBUG else "INFO",
+            "propagate": False,
+        },
     },
 }
 
@@ -353,4 +366,7 @@ print(f"✅ DIMBOX Settings Loaded - DEBUG: {DEBUG}")
 print(f"✅ Allowed Hosts: {ALLOWED_HOSTS}")
 print(f"✅ Database: {DATABASES['default']['ENGINE']}")
 print(f"✅ CORS Allowed Origins: {CORS_ALLOWED_ORIGINS}")
-print(f"✅ CORS Allowed Headers: {CORS_ALLOW_HEADERS}")  # ✅ AGREGADO: Para verificar
+print(
+    f"✅ Apps Installed: {[app for app in INSTALLED_APPS if not app.startswith('django')]}"
+)
+print(f"✅ Enterprise Module: ACTIVE")  # ✅ NUEVO: Confirmación del módulo
