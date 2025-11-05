@@ -3,7 +3,6 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.views import APIView
 from django.db.models import Q, Sum, Count
 from django.db import models
 from django.utils import timezone
@@ -29,49 +28,45 @@ class ClientViewSet(viewsets.ModelViewSet):
     serializer_class = ClientSerializer
 
     def get_queryset(self):
-        """✅ Solo los clientes del usuario actual"""
+        """Solo los clientes del usuario actual"""
         return Client.objects.filter(created_by=self.request.user).order_by("name")
 
     def perform_create(self, serializer):
-        """✅ CORRECCIÓN CRÍTICA: Asignar usuario automáticamente"""
-        print(f"👤 [ClientViewSet] Creando cliente para usuario: {self.request.user}")
-        print(f"📦 [ClientViewSet] Datos recibidos: {self.request.data}")
-
+        """CORRECCIÓN CRÍTICA: Asignar usuario automáticamente"""
+        print(f"[ClientViewSet] Creando cliente para usuario: {self.request.user}")
         try:
             serializer.save(created_by=self.request.user)
-            print("✅ [ClientViewSet] Cliente creado exitosamente")
+            print("[ClientViewSet] Cliente creado exitosamente")
         except Exception as e:
-            print(f"❌ [ClientViewSet] Error creando cliente: {str(e)}")
+            print(f"[ClientViewSet] Error creando cliente: {str(e)}")
             raise
 
     def create(self, request, *args, **kwargs):
-        """✅ Manejo mejorado de creación con logs detallados"""
-        print(f"🚀 [ClientViewSet] CREATE endpoint llamado")
-        print(f"📤 [ClientViewSet] Datos: {request.data}")
+        """Manejo mejorado de creación con logs detallados"""
+        print(f"[ClientViewSet] CREATE endpoint llamado")
+        print(f"[ClientViewSet] Datos: {request.data}")
 
         try:
-            # Validaciones básicas
-            if not request.data.get("name"):
-                return Response(
-                    {"error": "El nombre del cliente es obligatorio"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+            # CORRECCIÓN: Usar el serializer con contexto
+            serializer = self.get_serializer(
+                data=request.data, context={"request": request}
+            )
 
-            if not request.data.get("document_number"):
-                return Response(
-                    {"error": "El número de documento es obligatorio"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+            if not serializer.is_valid():
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            response = super().create(request, *args, **kwargs)
-            print(f"✅ [ClientViewSet] Respuesta enviada: {response.status_code}")
-            return response
+            self.perform_create(serializer)
+            headers = self.get_success_headers(serializer.data)
+
+            return Response(
+                serializer.data, status=status.HTTP_201_CREATED, headers=headers
+            )
 
         except Exception as e:
-            print(f"❌ [ClientViewSet] Error en create: {str(e)}")
+            print(f"[ClientViewSet] Error en create: {str(e)}")
             import traceback
 
-            print(f"💥 [ClientViewSet] Traceback: {traceback.format_exc()}")
+            print(f"[ClientViewSet] Traceback: {traceback.format_exc()}")
             return Response(
                 {"error": f"Error interno del servidor: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -79,7 +74,7 @@ class ClientViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"])
     def search(self, request):
-        """✅ Búsqueda simple por nombre o documento"""
+        """Búsqueda simple por nombre o documento"""
         query = request.GET.get("q", "").strip()
 
         if not query:
@@ -87,18 +82,18 @@ class ClientViewSet(viewsets.ModelViewSet):
 
         clients = self.get_queryset().filter(
             Q(name__icontains=query) | Q(document_number__icontains=query)
-        )[:10]  # Límite de 10 resultados
+        )[:10]
 
         serializer = self.get_serializer(clients, many=True)
         return Response(serializer.data)
 
 
-# ✅ ENDPOINT DE EMERGENCIA - CLIENTES DIRECTO
+# ENDPOINT DE EMERGENCIA - CLIENTES DIRECTO
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
 def enterprise_clients_direct(request):
     """
-    ✅ ENDPOINT DE EMERGENCIA - Clientes directo
+    ENDPOINT DE EMERGENCIA - Clientes directo
     """
     user = request.user
 
@@ -109,8 +104,8 @@ def enterprise_clients_direct(request):
 
     elif request.method == "POST":
         try:
-            print(f"🚀 [DIRECT] Creando cliente para: {user.username}")
-            print(f"📦 [DIRECT] Datos: {request.data}")
+            print(f"[DIRECT] Creando cliente para: {user.username}")
+            print(f"[DIRECT] Datos: {request.data}")
 
             # Validaciones
             if not request.data.get("name"):
@@ -136,21 +131,21 @@ def enterprise_clients_direct(request):
             )
 
             serializer = ClientSerializer(client)
-            print(f"✅ [DIRECT] Cliente creado: {client.id}")
+            print(f"[DIRECT] Cliente creado: {client.id}")
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         except Exception as e:
-            print(f"❌ [DIRECT] Error: {str(e)}")
+            print(f"[DIRECT] Error: {str(e)}")
             import traceback
 
-            print(f"💥 [DIRECT] Traceback: {traceback.format_exc()}")
+            print(f"[DIRECT] Traceback: {traceback.format_exc()}")
             return Response(
                 {"error": f"Error interno: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
 
-# 📦 VISTAS DE PRODUCTOS - CORREGIDAS
+# VISTAS DE PRODUCTOS - CORREGIDAS (MANTENER COMO ESTÁN)
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
 def products_list_create(request):
@@ -178,27 +173,27 @@ def products_list_create(request):
         serializer = ProductListSerializer(products, many=True)
         return Response(serializer.data)
 
-    # ✅ CORRECCIÓN: POST - Crear producto CON RESPUESTA ESTRUCTURADA
-    print(f"🎯 [ENTERPRISE] Creando producto para usuario: {user.username}")
-    print(f"📦 [ENTERPRISE] Datos recibidos: {request.data}")
+    # CORRECCIÓN: POST - Crear producto CON RESPUESTA ESTRUCTURADA
+    print(f"[ENTERPRISE] Creando producto para usuario: {user.username}")
+    print(f"[ENTERPRISE] Datos recibidos: {request.data}")
 
     try:
         serializer = ProductSerializer(data=request.data, context={"request": request})
 
         if serializer.is_valid():
-            print("✅ [ENTERPRISE] Serializer válido - Guardando producto...")
+            print("[ENTERPRISE] Serializer válido - Guardando producto...")
             product = serializer.save()
-            print(f"🎉 [ENTERPRISE] Producto creado: {product.id} - {product.name}")
+            print(f"[ENTERPRISE] Producto creado: {product.id} - {product.name}")
 
-            # ✅ CORRECCIÓN CRÍTICA: Devolver el producto serializado correctamente
+            # CORRECCIÓN CRÍTICA: Devolver el producto serializado correctamente
             response_serializer = ProductSerializer(product)
             print(
-                f"📤 [ENTERPRISE] Enviando respuesta estructurada: {response_serializer.data}"
+                f"[ENTERPRISE] Enviando respuesta estructurada: {response_serializer.data}"
             )
 
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
         else:
-            print(f"❌ [ENTERPRISE] Errores del serializer: {serializer.errors}")
+            print(f"[ENTERPRISE] Errores del serializer: {serializer.errors}")
             return Response(
                 {
                     "detail": "Error de validación",
@@ -208,25 +203,25 @@ def products_list_create(request):
             )
 
     except Exception as e:
-        print(f"🔥 [ENTERPRISE] Error: {str(e)}")
+        print(f"[ENTERPRISE] Error: {str(e)}")
         import traceback
 
-        print(f"💥 [ENTERPRISE] Traceback: {traceback.format_exc()}")
+        print(f"[ENTERPRISE] Traceback: {traceback.format_exc()}")
         return Response(
             {"detail": f"Error interno: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
 
-# ✅ ENDPOINT DE EMERGENCIA - CREACIÓN DIRECTA DE PRODUCTO
+# ENDPOINT DE EMERGENCIA - CREACIÓN DIRECTA DE PRODUCTO
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def create_product_direct(request):
-    """✅ SOLUCIÓN INMEDIATA - Crear producto y devolver JSON estructurado"""
+    """SOLUCIÓN INMEDIATA - Crear producto y devolver JSON estructurado"""
     user = request.user
 
-    print(f"🚀 [ENTERPRISE DIRECT] Creando producto directo para: {user.username}")
-    print(f"📦 [ENTERPRISE DIRECT] Datos recibidos: {request.data}")
+    print(f"[ENTERPRISE DIRECT] Creando producto directo para: {user.username}")
+    print(f"[ENTERPRISE DIRECT] Datos recibidos: {request.data}")
 
     try:
         data = request.data
@@ -253,7 +248,7 @@ def create_product_direct(request):
         stock = int(data.get("stock", 0))
         tax_rate = float(data.get("tax_rate", 18.00))
 
-        print(f"🔧 [ENTERPRISE DIRECT] Procesando datos:")
+        print(f"[ENTERPRISE DIRECT] Procesando datos:")
         print(f"   - Nombre: {name}")
         print(f"   - Precio: {price}")
         print(f"   - Costo: {cost}")
@@ -273,9 +268,9 @@ def create_product_direct(request):
             is_active=True,
         )
 
-        print(f"🎉 [ENTERPRISE DIRECT] Producto creado exitosamente: {product.id}")
+        print(f"[ENTERPRISE DIRECT] Producto creado exitosamente: {product.id}")
 
-        # ✅ RESPUESTA ESTRUCTURADA CORRECTA
+        # RESPUESTA ESTRUCTURADA CORRECTA
         response_data = {
             "id": product.id,
             "name": product.name,
@@ -294,22 +289,20 @@ def create_product_direct(request):
             "updated_at": product.updated_at.isoformat(),
         }
 
-        print(
-            f"📤 [ENTERPRISE DIRECT] Enviando respuesta estructurada: {response_data}"
-        )
+        print(f"[ENTERPRISE DIRECT] Enviando respuesta estructurada: {response_data}")
         return Response(response_data, status=status.HTTP_201_CREATED)
 
     except ValueError as e:
-        print(f"❌ [ENTERPRISE DIRECT] Error de valor: {str(e)}")
+        print(f"[ENTERPRISE DIRECT] Error de valor: {str(e)}")
         return Response(
             {"error": f"Error en los datos: {str(e)}"},
             status=status.HTTP_400_BAD_REQUEST,
         )
     except Exception as e:
-        print(f"🔥 [ENTERPRISE DIRECT] Error general: {str(e)}")
+        print(f"[ENTERPRISE DIRECT] Error general: {str(e)}")
         import traceback
 
-        print(f"💥 [ENTERPRISE DIRECT] Traceback: {traceback.format_exc()}")
+        print(f"[ENTERPRISE DIRECT] Traceback: {traceback.format_exc()}")
         return Response(
             {"error": f"Error interno: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -322,7 +315,7 @@ def product_detail(request, pk):
     """
     GET: Obtener detalle de producto
     PUT: Actualizar producto
-    DELETE: ✅ CORREGIDO - Eliminar producto (HARD DELETE)
+    DELETE: CORREGIDO - Eliminar producto (HARD DELETE)
     """
     user = request.user
     try:
@@ -346,19 +339,19 @@ def product_detail(request, pk):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == "DELETE":
-        # ✅ CORRECCIÓN CRÍTICA: HARD DELETE - Eliminación real de la base de datos
+        # CORRECCIÓN CRÍTICA: HARD DELETE - Eliminación real de la base de datos
         print(
-            f"🗑️ [ENTERPRISE DELETE] Eliminando producto ID: {product.id} - {product.name}"
+            f"[ENTERPRISE DELETE] Eliminando producto ID: {product.id} - {product.name}"
         )
 
         # Guardar información para el log antes de eliminar
         product_id = product.id
         product_name = product.name
 
-        # ✅ ELIMINACIÓN REAL
+        # ELIMINACIÓN REAL
         product.delete()
 
-        print(f"✅ [ENTERPRISE DELETE] Producto {product_id} eliminado permanentemente")
+        print(f"[ENTERPRISE DELETE] Producto {product_id} eliminado permanentemente")
 
         return Response(
             {"detail": "Producto eliminado permanentemente"},
@@ -408,7 +401,7 @@ def products_stats(request):
     )
 
 
-# 🧾 VISTAS DE FACTURAS (INVOICES)
+# VISTAS DE FACTURAS (INVOICES)
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
 def invoices_list_create(request):
@@ -634,13 +627,13 @@ def enterprise_dashboard(request):
     )
 
 
-# ✅ ENDPOINT TEMPORAL PARA DEBUG DE VALIDACIÓN
+# ENDPOINT TEMPORAL PARA DEBUG DE VALIDACIÓN
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def debug_product_validation(request):
     """Endpoint para debug de validación de productos"""
     print(
-        f"🎯 [ENTERPRISE DEBUG] debug_product_validation - Data recibida: {request.data}"
+        f"[ENTERPRISE DEBUG] debug_product_validation - Data recibida: {request.data}"
     )
 
     # Validar campos requeridos manualmente

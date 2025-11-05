@@ -1,4 +1,4 @@
-# enterprise/serializers.py - MÓDULO EMPRESARIAL COMPLETO
+# enterprise/serializers.py - MÓDULO EMPRESARIAL COMPLETO CORREGIDO
 from rest_framework import serializers
 from django.utils.translation import gettext_lazy as _
 from .models import Client, Product, Invoice, InvoiceItem
@@ -17,23 +17,26 @@ class ClientSerializer(serializers.ModelSerializer):
             "phone",
             "email",
             "created_at",
+            "updated_at",
         ]
-        read_only_fields = ["id", "created_at"]
+        read_only_fields = ["id", "created_at", "updated_at"]
 
     def create(self, validated_data):
-        """✅ Asignar automáticamente el usuario que crea"""
-        validated_data["created_by"] = self.context["request"].user
+        """CORRECCIÓN CRÍTICA: Asignar usuario automáticamente - MISMO PATRÓN QUE PRODUCTOS"""
+        request = self.context.get("request")
+        if request and hasattr(request, "user"):
+            validated_data["created_by"] = request.user
         return super().create(validated_data)
 
     def validate_document_number(self, value):
-        """✅ Validación básica de documento"""
+        """Validación básica de documento"""
         value = value.strip()
         if not value:
             raise serializers.ValidationError("El número de documento es obligatorio")
         return value
 
     def validate_name(self, value):
-        """✅ Validación básica de nombre"""
+        """Validación básica de nombre"""
         value = value.strip()
         if not value:
             raise serializers.ValidationError("El nombre es obligatorio")
@@ -93,7 +96,7 @@ class ProductSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
-        """✅ CORRECCIÓN CRÍTICA: Asignar usuario del contexto"""
+        """CORRECCIÓN CRÍTICA: Asignar usuario del contexto"""
         request = self.context.get("request")
 
         if request and hasattr(request, "user"):

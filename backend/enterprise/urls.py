@@ -8,11 +8,11 @@ router.register(r"clients", views.ClientViewSet, basename="client")
 
 urlpatterns = [
     # -------------------------------
-    # 👥 CLIENTES (ViewSet)
+    # CLIENTES (ViewSet)
     # -------------------------------
     path("", include(router.urls)),
     # -------------------------------
-    # 📦 PRODUCTOS
+    # PRODUCTOS
     # -------------------------------
     # Rutas principales de productos
     path(
@@ -30,14 +30,14 @@ urlpatterns = [
         views.products_stats,
         name="enterprise-products-stats",
     ),
-    # ✅ RUTA DE EMERGENCIA PARA CREACIÓN DIRECTA DE PRODUCTOS
+    # RUTA DE EMERGENCIA PARA CREACIÓN DIRECTA DE PRODUCTOS
     path(
         "products/direct/",
         views.create_product_direct,
         name="enterprise-products-direct",
     ),
     # -------------------------------
-    # 🧾 FACTURAS
+    # FACTURAS
     # -------------------------------
     path(
         "invoices/",
@@ -65,11 +65,11 @@ urlpatterns = [
         name="enterprise-invoices-stats",
     ),
     # -------------------------------
-    # 📊 DASHBOARD EMPRESARIAL
+    # DASHBOARD EMPRESARIAL
     # -------------------------------
     path("dashboard/", views.enterprise_dashboard, name="enterprise-dashboard"),
     # -------------------------------
-    # 🛠️ UTILIDADES Y DEBUG
+    # UTILIDADES Y DEBUG
     # -------------------------------
     path(
         "debug/product-validation/",
@@ -82,43 +82,3 @@ urlpatterns = [
         name="enterprise-clients-direct",
     ),
 ]
-
-# ✅ NOTAS IMPORTANTES:
-"""
-ESTRUCTURA DE RUTAS EMPRESARIALES:
-
-🏢 MÓDULO EMPRESARIAL COMPLETO:
-/api/enterprise/
-
-👥 CLIENTES:
-GET/POST    /api/enterprise/clients/
-GET/PUT/DEL /api/enterprise/clients/{id}/
-GET         /api/enterprise/clients/search/?q=term
-
-📦 PRODUCTOS:
-GET/POST    /api/enterprise/products/           ← Principal
-GET/PUT/DEL /api/enterprise/products/{id}/      ← Detalle
-GET         /api/enterprise/products/stats/     ← Estadísticas
-POST        /api/enterprise/products/direct/    ← Emergencia
-
-🧾 FACTURAS:
-GET/POST    /api/enterprise/invoices/
-POST        /api/enterprise/invoices/quick-create/
-GET/PUT/DEL /api/enterprise/invoices/{id}/
-POST        /api/enterprise/invoices/{id}/status/
-GET         /api/enterprise/invoices/stats/
-
-📊 DASHBOARD:
-GET         /api/enterprise/dashboard/
-
-INSTRUCCIONES DE USO:
-
-🔧 TEMPORAL (Funciona inmediatamente):
-   POST /api/enterprise/products/direct/
-
-🎯 PERMANENTE (Una vez verificado):
-   POST /api/enterprise/products/
-
-🛠️ PARA DEBUG:
-   POST /api/enterprise/debug/product-validation/
-"""
