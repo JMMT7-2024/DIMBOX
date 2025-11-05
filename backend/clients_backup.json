@@ -1,0 +1,8 @@
+✅ DIMBOX Settings Loaded - DEBUG: False
+✅ Allowed Hosts: ['*']
+✅ Database: django.db.backends.postgresql
+✅ CORS Allowed Origins: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000', 'http://127.0.0.1:3000', 'https://prueba-diovic.web.app', 'https://prueba-diovic.firebaseapp.com', 'https://dimbox-app.web.app', 'https://dimbox-app.firebaseapp.com']
+✅ Apps Installed: ['corsheaders', 'rest_framework', 'rest_framework_simplejwt', 'core', 'quick_accounts', 'enterprise']
+✅ Enterprise Module: ACTIVE
+[
+]

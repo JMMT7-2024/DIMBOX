@@ -1,6 +1,8 @@
 # enterprise/serializers.py - MÓDULO EMPRESARIAL COMPLETO CORREGIDO
 from rest_framework import serializers
 from django.utils.translation import gettext_lazy as _
+from django.utils import timezone
+from datetime import timedelta
 from .models import Client, Product, Invoice, InvoiceItem
 
 
@@ -26,6 +28,10 @@ class ClientSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         if request and hasattr(request, "user"):
             validated_data["created_by"] = request.user
+        else:
+            raise serializers.ValidationError(
+                "No se pudo determinar el usuario para el cliente"
+            )
         return super().create(validated_data)
 
     def validate_document_number(self, value):
@@ -67,6 +73,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "price_with_tax",
             "created_at",
             "updated_at",
+            "user",  # Agregado para debugging
         ]
         read_only_fields = [
             "id",
@@ -75,6 +82,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "profit_margin",
             "tax_amount",
             "price_with_tax",
+            "user",  # Hacerlo read-only para evitar asignación manual
         ]
 
     def validate_price(self, value):
@@ -102,10 +110,9 @@ class ProductSerializer(serializers.ModelSerializer):
         if request and hasattr(request, "user"):
             validated_data["user"] = request.user
         else:
-            if "user" not in validated_data:
-                raise serializers.ValidationError(
-                    "No se pudo determinar el usuario para el producto"
-                )
+            raise serializers.ValidationError(
+                "No se pudo determinar el usuario para el producto"
+            )
 
         return super().create(validated_data)
 
@@ -129,6 +136,7 @@ class ProductListSerializer(serializers.ModelSerializer):
 
 class InvoiceItemSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source="product.name", read_only=True)
+    product_sku = serializers.CharField(source="product.sku", read_only=True)
     subtotal = serializers.ReadOnlyField()
     tax_amount = serializers.ReadOnlyField()
     total = serializers.ReadOnlyField()
@@ -139,6 +147,7 @@ class InvoiceItemSerializer(serializers.ModelSerializer):
             "id",
             "product",
             "product_name",
+            "product_sku",
             "quantity",
             "unit_price",
             "tax_rate",
@@ -186,6 +195,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
             "items",
             "created_at",
             "updated_at",
+            "user",  # Agregado para debugging
         ]
         read_only_fields = [
             "id",
@@ -196,6 +206,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "is_overdue",
+            "user",  # Hacerlo read-only
         ]
 
     def get_client_info(self, obj):
@@ -224,11 +235,27 @@ class InvoiceSerializer(serializers.ModelSerializer):
 
         if request and hasattr(request, "user"):
             validated_data["user"] = request.user
+        else:
+            raise serializers.ValidationError(
+                "No se pudo determinar el usuario para la factura"
+            )
 
         # Calcular totales iniciales
         validated_data.setdefault("subtotal", 0)
         validated_data.setdefault("tax_amount", 0)
         validated_data.setdefault("total", 0)
+
+        # Generar número de factura si no existe
+        if not validated_data.get("invoice_number"):
+            last_invoice = (
+                Invoice.objects.filter(user=validated_data["user"])
+                .order_by("-id")
+                .first()
+            )
+            next_id = (last_invoice.id + 1) if last_invoice else 1
+            validated_data["invoice_number"] = (
+                f"F{validated_data['user'].id}-{next_id:06d}"
+            )
 
         invoice = Invoice.objects.create(**validated_data)
 
@@ -262,8 +289,8 @@ class InvoiceSerializer(serializers.ModelSerializer):
 
         for item_data in items_data:
             item = InvoiceItem.objects.create(invoice=invoice, **item_data)
-            subtotal += item.subtotal
-            tax_amount += item.tax_amount
+            subtotal += float(item.subtotal)
+            tax_amount += float(item.tax_amount)
 
         # Actualizar totales del invoice
         invoice.subtotal = subtotal
@@ -308,10 +335,10 @@ class InvoiceCreateSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         """Crear factura completa desde datos simplificados"""
-        from django.utils import timezone
-        from datetime import timedelta
-
         request = self.context.get("request")
+        if not request or not hasattr(request, "user"):
+            raise serializers.ValidationError("Usuario no autenticado")
+
         items_data = validated_data.pop("items")
 
         # Configurar fechas por defecto
@@ -322,9 +349,15 @@ class InvoiceCreateSerializer(serializers.Serializer):
                 days=30
             )
 
+        # Generar número de factura
+        last_invoice = Invoice.objects.filter(user=request.user).order_by("-id").first()
+        next_id = (last_invoice.id + 1) if last_invoice else 1
+        invoice_number = f"F{request.user.id}-{next_id:06d}"
+
         # Crear invoice base
         invoice_data = {
             "user": request.user,
+            "invoice_number": invoice_number,
             "client_name": validated_data["client_name"],
             "client_ruc": validated_data.get("client_ruc", ""),
             "client_email": validated_data.get("client_email", ""),
@@ -335,6 +368,7 @@ class InvoiceCreateSerializer(serializers.Serializer):
             "subtotal": 0,
             "tax_amount": 0,
             "total": 0,
+            "status": "DRAFT",
         }
 
         invoice = Invoice.objects.create(**invoice_data)
@@ -357,8 +391,8 @@ class InvoiceCreateSerializer(serializers.Serializer):
                     tax_rate=product.tax_rate,
                 )
 
-                subtotal += invoice_item.subtotal
-                tax_amount += invoice_item.tax_amount
+                subtotal += float(invoice_item.subtotal)
+                tax_amount += float(invoice_item.tax_amount)
 
             except Product.DoesNotExist:
                 raise serializers.ValidationError(
@@ -372,3 +406,35 @@ class InvoiceCreateSerializer(serializers.Serializer):
         invoice.save()
 
         return invoice
+
+
+class InvoiceSummarySerializer(serializers.ModelSerializer):
+    """Serializer resumido para listas de facturas"""
+
+    client_info = serializers.SerializerMethodField()
+    items_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Invoice
+        fields = [
+            "id",
+            "invoice_number",
+            "client_info",
+            "total",
+            "status",
+            "payment_method",
+            "issue_date",
+            "due_date",
+            "is_overdue",
+            "items_count",
+            "created_at",
+        ]
+
+    def get_client_info(self, obj):
+        return {
+            "name": obj.client_name,
+            "ruc": obj.client_ruc,
+        }
+
+    def get_items_count(self, obj):
+        return obj.items.count()
