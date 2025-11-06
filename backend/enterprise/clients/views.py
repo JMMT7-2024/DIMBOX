@@ -19,6 +19,7 @@ class ClientViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        # ✅ CORREGIDO: Ahora is_active existe en el modelo
         queryset = Client.objects.filter(created_by=user, is_active=True)
 
         search = self.request.GET.get("search", "")

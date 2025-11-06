@@ -1,5 +1,5 @@
 from django.db import models
-from django.conf import settings  # ✅ AGREGAR
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 
@@ -13,7 +13,7 @@ class Client(models.Model):
     ]
 
     created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,  # ✅ CORREGIDO
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="enterprise_clients",
         verbose_name="Creado por",
@@ -37,6 +37,10 @@ class Client(models.Model):
         max_length=100, blank=True, null=True, verbose_name="Ciudad"
     )
     country = models.CharField(max_length=100, default="Perú", verbose_name="País")
+
+    # ✅ CAMPO CRÍTICO AÑADIDO
+    is_active = models.BooleanField(default=True, verbose_name="Activo")
+
     created_at = models.DateTimeField(
         auto_now_add=True, verbose_name="Fecha de Creación"
     )

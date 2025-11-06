@@ -35,6 +35,9 @@ class ClientCreateSerializer(serializers.ModelSerializer):
             "email",
             "phone",
             "address",
+            "city",  # ✅ AÑADIDO
+            "country",  # ✅ AÑADIDO
+            # "is_active",    # ❌ NO INCLUIR en creación (se asigna por defecto)
         ]
 
 
@@ -48,5 +51,5 @@ class ClientListSerializer(serializers.ModelSerializer):
             "document_number",
             "email",
             "phone",
-            "is_active",
+            "is_active",  # ✅ AHORA EXISTE
         ]
