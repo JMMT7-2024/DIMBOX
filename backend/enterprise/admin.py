@@ -1,10 +1,14 @@
-# enterprise/admin.py
+# enterprise/admin.py - VERSIÓN FINAL CORREGIDA
 from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
 from django.utils import timezone
-from .models import Client, Product, Invoice, InvoiceItem
 from decimal import Decimal
+
+# ✅ IMPORTS CORREGIDOS - ÚNICO CAMBIO NECESARIO
+from enterprise.clients.models import Client
+from enterprise.products.models import Product
+from enterprise.invoices.models import Invoice, InvoiceItem
 
 
 # =============================================
@@ -19,7 +23,7 @@ class ClientAdmin(admin.ModelAdmin):
         "contact_info",
         "created_by",
         "created_at_display",
-        "actions",
+        "client_actions",
     ]
 
     list_display_links = ["id", "name_display"]
@@ -111,13 +115,13 @@ class ClientAdmin(admin.ModelAdmin):
 
     full_address_display.short_description = "DIRECCIÓN COMPLETA"
 
-    def actions(self, obj):
+    def client_actions(self, obj):
         return format_html(
             '<a href="{}" class="button" style="background: #4CAF50; color: white; padding: 5px 10px; border-radius: 3px; text-decoration: none;">Ver</a>',
             reverse("admin:enterprise_client_change", args=[obj.id]),
         )
 
-    actions.short_description = "ACCIONES"
+    client_actions.short_description = "ACCIONES"
 
     def save_model(self, request, obj, form, change):
         if not change:
@@ -203,7 +207,7 @@ class InvoiceAdmin(admin.ModelAdmin):
         "payment_method_display",
         "dates_info",
         "overdue_status",
-        "actions",
+        "invoice_actions",
     ]
 
     list_display_links = ["invoice_number", "client_info"]
@@ -454,7 +458,7 @@ class InvoiceAdmin(admin.ModelAdmin):
 
     overdue_status.short_description = "VENCIMIENTO"
 
-    def actions(self, obj):
+    def invoice_actions(self, obj):
         view_url = reverse("admin:enterprise_invoice_change", args=[obj.id])
         return format_html(
             """
@@ -473,7 +477,7 @@ class InvoiceAdmin(admin.ModelAdmin):
             view_url,
         )
 
-    actions.short_description = "ACCIONES"
+    invoice_actions.short_description = "ACCIONES"
 
     def is_overdue_display(self, obj):
         if obj.is_overdue:
@@ -865,7 +869,6 @@ class ProductAdmin(admin.ModelAdmin):
     stock_status_display.short_description = "ESTADO DE INVENTARIO"
 
     def sales_performance(self, obj):
-        # Aquí puedes agregar métricas reales de ventas
         return format_html(
             """
             <div style="background: #f7fafc; padding: 15px; border-radius: 5px;">
@@ -918,7 +921,7 @@ class ProductAdmin(admin.ModelAdmin):
 
     def apply_10_percent_discount(self, request, queryset):
         for product in queryset:
-            new_price = product.price * Decimal("0.9")  # 10% discount
+            new_price = product.price * Decimal("0.9")
             product.price = new_price.quantize(Decimal("0.01"))
             product.save()
         self.message_user(

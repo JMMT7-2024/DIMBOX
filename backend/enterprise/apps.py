@@ -1,4 +1,4 @@
-# /root/DIMBOX/backend/enterprise/apps.py
+# enterprise/apps.py
 from django.apps import AppConfig
 
 
@@ -8,8 +8,8 @@ class EnterpriseConfig(AppConfig):
     verbose_name = "Sistema Empresarial"
 
     def ready(self):
-        # Importar señales si las hay
+        # Importar todos los módulos para asegurar que se registren
         try:
-            from . import signals
-        except ImportError:
-            pass
+            from . import clients, products, invoices
+        except ImportError as e:
+            print(f"Error importing modules: {e}")
