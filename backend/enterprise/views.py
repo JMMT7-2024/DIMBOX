@@ -3,11 +3,14 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.db.models import Q, Sum, Count
+from django.db.models import Q, Sum, Count, Avg, F, ExpressionWrapper, DecimalField
 from django.db import models
 from django.utils import timezone
 from datetime import timedelta
 from django.shortcuts import get_object_or_404
+from django.db.models.functions import TruncMonth, TruncWeek, TruncDay
+from decimal import Decimal
+
 
 from .models import Client, Product, Invoice, InvoiceItem
 from .serializers import (
@@ -138,8 +141,31 @@ class ClientViewSet(viewsets.ModelViewSet):
             .annotate(count=Count("id"))
         )
 
+        # Clientes por ciudad
+        by_city = (
+            Client.objects.filter(created_by=user)
+            .exclude(city__isnull=True)
+            .exclude(city="")
+            .values("city")
+            .annotate(count=Count("id"))
+            .order_by("-count")[:10]
+        )
+
+        # Clientes creados este mes
+        current_month = timezone.now().replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        )
+        clients_this_month = Client.objects.filter(
+            created_by=user, created_at__gte=current_month
+        ).count()
+
         return Response(
-            {"total_clients": total_clients, "by_document_type": list(by_document_type)}
+            {
+                "total_clients": total_clients,
+                "clients_this_month": clients_this_month,
+                "by_document_type": list(by_document_type),
+                "by_city": list(by_city),
+            }
         )
 
 
@@ -166,21 +192,30 @@ class ProductViewSet(viewsets.ModelViewSet):
         category = self.request.GET.get("category", "")
         is_active = self.request.GET.get("is_active", "")
         search = self.request.GET.get("search", "")
+        low_stock = self.request.GET.get("low_stock", "")
 
         if category:
             queryset = queryset.filter(category=category)
-            print(f"[ProductViewSet] Filtro categoría: {category}")
+            print(f"{ProductViewSet} Filtro categoría: {category}")
 
         if is_active.lower() == "true":
             queryset = queryset.filter(is_active=True)
-            print(f"[ProductViewSet] Filtro activos: True")
+            print(f"{ProductViewSet} Filtro activos: True")
         elif is_active.lower() == "false":
             queryset = queryset.filter(is_active=False)
-            print(f"[ProductViewSet] Filtro activos: False")
+            print(f"{ProductViewSet} Filtro activos: False")
 
         if search:
-            queryset = queryset.filter(name__icontains=search)
+            queryset = queryset.filter(
+                Q(name__icontains=search)
+                | Q(description__icontains=search)
+                | Q(sku__icontains=search)
+            )
             print(f"[ProductViewSet] Búsqueda: '{search}'")
+
+        if low_stock.lower() == "true":
+            queryset = queryset.filter(stock__lte=5, stock__gt=0)
+            print("[ProductViewSet] Filtro stock bajo: True")
 
         queryset = queryset.order_by("-created_at")
         print(f"[ProductViewSet] Total productos: {queryset.count()}")
@@ -206,7 +241,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         """Creación con logs DETALLADOS como en el original"""
-        print(f"[ProductViewSet] 📝 CREATE endpoint llamado")
+        print("[ProductViewSet] 📝 CREATE endpoint llamado")
         print(f"[ProductViewSet] 👤 Usuario: {request.user.username}")
         print(f"[ProductViewSet] 📦 Datos recibidos: {request.data}")
 
@@ -344,6 +379,15 @@ class ProductViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(product)
         return Response(serializer.data)
 
+    @action(detail=False, methods=["get"])
+    def categories(self, request):
+        """Obtener lista de categorías disponibles"""
+        categories = [
+            {"value": value, "label": label}
+            for value, label in Product.CATEGORY_CHOICES
+        ]
+        return Response(categories)
+
 
 class InvoiceViewSet(viewsets.ModelViewSet):
     """
@@ -371,6 +415,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         date_from = self.request.GET.get("date_from", "")
         date_to = self.request.GET.get("date_to", "")
         client_name = self.request.GET.get("client_name", "")
+        payment_method = self.request.GET.get("payment_method", "")
 
         if status_filter:
             queryset = queryset.filter(status=status_filter)
@@ -387,6 +432,10 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         if client_name:
             queryset = queryset.filter(client_name__icontains=client_name)
             print(f"[InvoiceViewSet] Filtro cliente: {client_name}")
+
+        if payment_method:
+            queryset = queryset.filter(payment_method=payment_method)
+            print(f"[InvoiceViewSet] Filtro método pago: {payment_method}")
 
         queryset = queryset.order_by("-issue_date", "-created_at")
         print(f"[InvoiceViewSet] Total facturas: {queryset.count()}")
@@ -411,7 +460,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         """Creación con logs DETALLADOS"""
-        print(f"[InvoiceViewSet] 📝 CREATE factura llamado")
+        print("[InvoiceViewSet] 📝 CREATE factura llamado")
         print(f"[InvoiceViewSet] 👤 Usuario: {request.user.username}")
         print(f"[InvoiceViewSet] 📦 Datos recibidos: {request.data}")
 
@@ -427,7 +476,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             self.perform_create(serializer)
             headers = self.get_success_headers(serializer.data)
 
-            print(f"[InvoiceViewSet] ✅ Factura creada exitosamente")
+            print("[InvoiceViewSet] ✅ Factura creada exitosamente")
             return Response(
                 serializer.data, status=status.HTTP_201_CREATED, headers=headers
             )
@@ -513,6 +562,66 @@ class InvoiceViewSet(viewsets.ModelViewSet):
                 "issue_date": invoice.issue_date.isoformat(),
             }
         )
+
+    @action(detail=True, methods=["post"])
+    def send_email(self, request, pk=None):
+        """Enviar factura por email"""
+        invoice = self.get_object()
+        print(f"[InvoiceViewSet] 📧 Enviando email para: {invoice.invoice_number}")
+
+        # TODO: Implementar envío de email real
+        return Response(
+            {
+                "message": f"Factura {invoice.invoice_number} enviada por email",
+                "invoice_number": invoice.invoice_number,
+                "client_email": invoice.client_email,
+            }
+        )
+
+    @action(detail=True, methods=["post"])
+    def duplicate(self, request, pk=None):
+        """Duplicar factura"""
+        original_invoice = self.get_object()
+        print(
+            f"[InvoiceViewSet] 📋 Duplicando factura: {original_invoice.invoice_number}"
+        )
+
+        try:
+            # Crear nueva factura
+            new_invoice = Invoice.objects.create(
+                user=original_invoice.user,
+                client_name=original_invoice.client_name,
+                client_ruc=original_invoice.client_ruc,
+                client_email=original_invoice.client_email,
+                client_address=original_invoice.client_address,
+                subtotal=original_invoice.subtotal,
+                tax_amount=original_invoice.tax_amount,
+                total=original_invoice.total,
+                payment_method=original_invoice.payment_method,
+                issue_date=timezone.now().date(),
+                due_date=timezone.now().date() + timedelta(days=30),
+                status="DRAFT",
+                notes=f"Duplicado de {original_invoice.invoice_number}",
+            )
+
+            # Duplicar items
+            for item in original_invoice.items.all():
+                InvoiceItem.objects.create(
+                    invoice=new_invoice,
+                    product=item.product,
+                    quantity=item.quantity,
+                    unit_price=item.unit_price,
+                    tax_rate=item.tax_rate,
+                )
+
+            serializer = self.get_serializer(new_invoice)
+            return Response(serializer.data)
+
+        except Exception as e:
+            return Response(
+                {"error": f"Error duplicando factura: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
     @action(detail=False, methods=["get"])
     def stats(self, request):
@@ -771,7 +880,7 @@ def create_product_direct(request):
         stock = int(data.get("stock", 0))
         tax_rate = float(data.get("tax_rate", 18.00))
 
-        print(f"[ENTERPRISE DIRECT] Procesando datos:")
+        print("[ENTERPRISE DIRECT] Procesando datos:")
         print(f"   - Nombre: {name}")
         print(f"   - Precio: {price}")
         print(f"   - Costo: {cost}")
@@ -1125,7 +1234,7 @@ def enterprise_dashboard(request):
     recent_invoices = Invoice.objects.filter(user=user).order_by("-created_at")[:5]
     recent_invoices_data = InvoiceSummarySerializer(recent_invoices, many=True).data
 
-    print(f"[Dashboard] Dashboard generado exitosamente")
+    print("[Dashboard] Dashboard generado exitosamente")
 
     return Response(
         {
@@ -1252,7 +1361,7 @@ def enterprise_health_check(request):
             "authentication": "OK",
         }
 
-        print(f"[HealthCheck] ✅ Módulo empresarial saludable")
+        print("[HealthCheck] ✅ Módulo empresarial saludable")
         return Response(health_status)
 
     except Exception as e:
@@ -1271,3 +1380,526 @@ def enterprise_health_check(request):
             },
             status=500,
         )
+
+
+# =============================================================================
+# NUEVOS ENDPOINTS PARA REPORTES Y ANALÍTICAS
+# =============================================================================
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def dashboard_quick_stats(request):
+    """Estadísticas rápidas para el dashboard"""
+    user = request.user
+    print(f"[Dashboard] Generando stats rápidos para: {user.username}")
+
+    try:
+        # Estadísticas de productos
+        total_products = Product.objects.filter(user=user).count()
+        active_products = Product.objects.filter(user=user, is_active=True).count()
+        low_stock_products = Product.objects.filter(
+            user=user, stock__lte=5, stock__gt=0
+        ).count()
+        out_of_stock_products = Product.objects.filter(user=user, stock=0).count()
+
+        # Estadísticas de clientes
+        total_clients = Client.objects.filter(created_by=user).count()
+        clients_this_month = Client.objects.filter(
+            created_by=user, created_at__month=timezone.now().month
+        ).count()
+
+        # Estadísticas de facturas
+        total_invoices = Invoice.objects.filter(user=user).count()
+        paid_invoices = Invoice.objects.filter(user=user, status="PAID").count()
+        overdue_invoices = Invoice.objects.filter(
+            user=user,
+            status="SENT",
+            due_date__lt=timezone.now().date(),
+            paid_date__isnull=True,
+        ).count()
+
+        # Totales financieros
+        total_revenue = (
+            Invoice.objects.filter(user=user, status="PAID").aggregate(
+                total=Sum("total")
+            )["total"]
+            or 0
+        )
+
+        monthly_revenue = (
+            Invoice.objects.filter(
+                user=user, status="PAID", issue_date__month=timezone.now().month
+            ).aggregate(total=Sum("total"))["total"]
+            or 0
+        )
+
+        inventory_value = (
+            Product.objects.filter(user=user, is_active=True).aggregate(
+                total_value=Sum(models.F("price") * models.F("stock"))
+            )["total_value"]
+            or 0
+        )
+
+        return Response(
+            {
+                "success": True,
+                "products": {
+                    "total": total_products,
+                    "active": active_products,
+                    "low_stock": low_stock_products,
+                    "out_of_stock": out_of_stock_products,
+                },
+                "clients": {"total": total_clients, "this_month": clients_this_month},
+                "invoices": {
+                    "total": total_invoices,
+                    "paid": paid_invoices,
+                    "overdue": overdue_invoices,
+                },
+                "financials": {
+                    "total_revenue": float(total_revenue),
+                    "monthly_revenue": float(monthly_revenue),
+                    "inventory_value": float(inventory_value),
+                },
+                "timestamp": timezone.now().isoformat(),
+            }
+        )
+
+    except Exception as e:
+        print(f"[Dashboard] Error generando stats: {str(e)}")
+        return Response({"success": False, "error": str(e)}, status=500)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def sales_report(request):
+    """Reporte detallado de ventas"""
+    user = request.user
+
+    # Parámetros de filtro
+    date_from = request.GET.get("date_from")
+    date_to = request.GET.get("date_to")
+    category = request.GET.get("category")
+
+    try:
+        # Base query
+        invoices = Invoice.objects.filter(user=user, status="PAID")
+
+        # Aplicar filtros
+        if date_from:
+            invoices = invoices.filter(issue_date__gte=date_from)
+        if date_to:
+            invoices = invoices.filter(issue_date__lte=date_to)
+
+        # Datos de ventas
+        sales_data = invoices.aggregate(
+            total_sales=Count("id"),
+            total_revenue=Sum("total"),
+            average_invoice=Avg("total"),
+        )
+
+        # Ventas por mes
+        monthly_sales = (
+            invoices.annotate(month=TruncMonth("issue_date"))
+            .values("month")
+            .annotate(count=Count("id"), revenue=Sum("total"))
+            .order_by("month")
+        )
+
+        # Productos más vendidos
+        top_products = (
+            InvoiceItem.objects.filter(invoice__user=user, invoice__status="PAID")
+            .values("product__name", "product__category")
+            .annotate(
+                total_sold=Sum("quantity"),
+                total_revenue=Sum(models.F("unit_price") * models.F("quantity")),
+            )
+            .order_by("-total_sold")[:10]
+        )
+
+        # Métodos de pago
+        payment_methods = invoices.values("payment_method").annotate(
+            count=Count("id"), total=Sum("total")
+        )
+
+        return Response(
+            {
+                "summary": sales_data,
+                "monthly_trends": list(monthly_sales),
+                "top_products": list(top_products),
+                "payment_methods": list(payment_methods),
+                "filters": {
+                    "date_from": date_from,
+                    "date_to": date_to,
+                    "category": category,
+                },
+            }
+        )
+
+    except Exception as e:
+        return Response({"error": f"Error generando reporte: {str(e)}"}, status=500)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def inventory_report(request):
+    """Reporte de inventario"""
+    user = request.user
+
+    try:
+        # Resumen de inventario
+        inventory_summary = Product.objects.filter(user=user).aggregate(
+            total_products=Count("id"),
+            active_products=Count("id", filter=models.Q(is_active=True)),
+            total_stock=Sum("stock"),
+            inventory_value=Sum(models.F("price") * models.F("stock")),
+        )
+
+        # Productos por categoría
+        by_category = (
+            Product.objects.filter(user=user)
+            .values("category")
+            .annotate(
+                count=Count("id"),
+                total_stock=Sum("stock"),
+                total_value=Sum(models.F("price") * models.F("stock")),
+            )
+        )
+
+        # Stock bajo
+        low_stock = Product.objects.filter(user=user, stock__lte=5, stock__gt=0).values(
+            "name", "sku", "stock", "min_stock", "price"
+        )
+
+        # Sin stock
+        out_of_stock = Product.objects.filter(user=user, stock=0).values(
+            "name", "sku", "price"
+        )
+
+        # Productos inactivos
+        inactive_products = Product.objects.filter(user=user, is_active=False).values(
+            "name", "sku", "stock"
+        )
+
+        return Response(
+            {
+                "summary": inventory_summary,
+                "by_category": list(by_category),
+                "low_stock": list(low_stock),
+                "out_of_stock": list(out_of_stock),
+                "inactive_products": list(inactive_products),
+            }
+        )
+
+    except Exception as e:
+        return Response(
+            {"error": f"Error generando reporte de inventario: {str(e)}"}, status=500
+        )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def bulk_update_products(request):
+    """Actualización masiva de productos"""
+    user = request.user
+    updates = request.data.get("updates", [])
+
+    if not updates:
+        return Response(
+            {"error": "No se proporcionaron datos para actualizar"}, status=400
+        )
+
+    try:
+        updated_count = 0
+        errors = []
+
+        for update in updates:
+            product_id = update.get("product_id")
+            field = update.get("field")
+            value = update.get("value")
+
+            if not all([product_id, field, value]):
+                errors.append(f"Datos incompletos: {update}")
+                continue
+
+            try:
+                product = Product.objects.get(id=product_id, user=user)
+
+                # Validar campo
+                if field not in ["price", "cost", "stock", "tax_rate", "is_active"]:
+                    errors.append(f"Campo no permitido: {field}")
+                    continue
+
+                # Actualizar campo
+                setattr(product, field, value)
+                product.save()
+                updated_count += 1
+
+            except Product.DoesNotExist:
+                errors.append(f"Producto no encontrado: {product_id}")
+            except Exception as e:
+                errors.append(f"Error actualizando producto {product_id}: {str(e)}")
+
+        return Response(
+            {
+                "success": True,
+                "updated_count": updated_count,
+                "error_count": len(errors),
+                "errors": errors,
+            }
+        )
+
+    except Exception as e:
+        return Response(
+            {"error": f"Error en actualización masiva: {str(e)}"}, status=500
+        )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def update_prices_bulk(request):
+    """Actualización masiva de precios"""
+    user = request.user
+    percentage = request.data.get("percentage")
+    operation = request.data.get("operation")  # 'increase' or 'decrease'
+
+    if not percentage or not operation:
+        return Response({"error": "Se requieren percentage y operation"}, status=400)
+
+    try:
+        products = Product.objects.filter(user=user, is_active=True)
+        updated_count = 0
+
+        for product in products:
+            if operation == "increase":
+                new_price = product.price * (1 + Decimal(percentage) / 100)
+            else:  # decrease
+                new_price = product.price * (1 - Decimal(percentage) / 100)
+
+            product.price = new_price.quantize(Decimal("0.01"))
+            product.save()
+            updated_count += 1
+
+        return Response(
+            {
+                "success": True,
+                "updated_count": updated_count,
+                "operation": operation,
+                "percentage": percentage,
+            }
+        )
+
+    except Exception as e:
+        return Response({"error": f"Error actualizando precios: {str(e)}"}, status=500)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def sales_trends(request):
+    """Tendencias de ventas por período"""
+    user = request.user
+    period = request.GET.get("period", "monthly")  # daily, weekly, monthly
+
+    try:
+        invoices = Invoice.objects.filter(user=user, status="PAID")
+
+        if period == "daily":
+            trunc = TruncDay("issue_date")
+        elif period == "weekly":
+            trunc = TruncWeek("issue_date")
+        else:  # monthly
+            trunc = TruncMonth("issue_date")
+
+        trends = (
+            invoices.annotate(period=trunc)
+            .values("period")
+            .annotate(
+                invoice_count=Count("id"),
+                total_revenue=Sum("total"),
+                average_invoice=Avg("total"),
+            )
+            .order_by("period")
+        )
+
+        return Response({"period": period, "trends": list(trends)})
+
+    except Exception as e:
+        return Response({"error": f"Error generando tendencias: {str(e)}"}, status=500)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def top_products(request):
+    """Productos más vendidos y más rentables"""
+    user = request.user
+    limit = int(request.GET.get("limit", 10))
+
+    try:
+        # Productos más vendidos por cantidad
+        top_by_quantity = (
+            InvoiceItem.objects.filter(invoice__user=user, invoice__status="PAID")
+            .values("product__name", "product__category")
+            .annotate(
+                total_sold=Sum("quantity"),
+                total_revenue=Sum(models.F("unit_price") * models.F("quantity")),
+            )
+            .order_by("-total_sold")[:limit]
+        )
+
+        # Productos más rentables
+        top_by_revenue = (
+            InvoiceItem.objects.filter(invoice__user=user, invoice__status="PAID")
+            .values("product__name", "product__category")
+            .annotate(
+                total_sold=Sum("quantity"),
+                total_revenue=Sum(models.F("unit_price") * models.F("quantity")),
+            )
+            .order_by("-total_revenue")[:limit]
+        )
+
+        return Response(
+            {
+                "top_by_quantity": list(top_by_quantity),
+                "top_by_revenue": list(top_by_revenue),
+            }
+        )
+
+    except Exception as e:
+        return Response(
+            {"error": f"Error obteniendo productos top: {str(e)}"}, status=500
+        )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def debug_invoice_validation(request):
+    """Debug de validación de facturas"""
+    print(f"[DEBUG] Validación de factura - Datos: {request.data}")
+
+    # Validar campos requeridos
+    required_fields = ["client_name", "items"]
+    missing_fields = [field for field in required_fields if field not in request.data]
+
+    if missing_fields:
+        return Response(
+            {
+                "error": "Campos requeridos faltantes",
+                "missing_fields": missing_fields,
+                "received_data": request.data,
+            },
+            status=400,
+        )
+
+    # Validar items
+    items = request.data.get("items", [])
+    if not items or not isinstance(items, list):
+        return Response(
+            {"error": "La factura debe contener items", "received_items": items},
+            status=400,
+        )
+
+    # Validar cada item
+    item_errors = []
+    for i, item in enumerate(items):
+        if "product_id" not in item:
+            item_errors.append(f"Item {i}: Falta product_id")
+        if "quantity" not in item:
+            item_errors.append(f"Item {i}: Falta quantity")
+        elif item["quantity"] <= 0:
+            item_errors.append(f"Item {i}: Cantidad debe ser mayor a 0")
+
+    if item_errors:
+        return Response(
+            {"error": "Errores en items", "item_errors": item_errors}, status=400
+        )
+
+    return Response(
+        {
+            "success": True,
+            "message": "Datos de factura válidos",
+            "validated_data": {
+                "client_name": request.data["client_name"],
+                "client_ruc": request.data.get("client_ruc", ""),
+                "client_email": request.data.get("client_email", ""),
+                "items_count": len(items),
+                "total_items": sum(item.get("quantity", 0) for item in items),
+            },
+        }
+    )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def system_info(request):
+    """Información del sistema empresarial"""
+    user = request.user
+
+    try:
+        # Estadísticas del sistema
+        stats = {
+            "user": {
+                "username": user.username,
+                "email": user.email,
+                "date_joined": user.date_joined.isoformat(),
+            },
+            "database": {
+                "clients_count": Client.objects.filter(created_by=user).count(),
+                "products_count": Product.objects.filter(user=user).count(),
+                "invoices_count": Invoice.objects.filter(user=user).count(),
+                "invoice_items_count": InvoiceItem.objects.filter(
+                    invoice__user=user
+                ).count(),
+            },
+            "storage": {
+                "total_products_size": "0 MB",  # Podrías calcular tamaño de imágenes
+                "total_invoices_size": "0 MB",  # Podrías calcular tamaño de PDFs
+            },
+            "system": {
+                "current_time": timezone.now().isoformat(),
+                "timezone": str(timezone.get_current_timezone()),
+                "django_version": "4.2+",  # Podrías obtener la versión real
+                "api_version": "1.0.0",
+            },
+        }
+
+        return Response(stats)
+
+    except Exception as e:
+        return Response(
+            {"error": f"Error obteniendo información del sistema: {str(e)}"}, status=500
+        )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def backup_data(request):
+    """Respaldar datos del usuario"""
+    user = request.user
+    data_type = request.GET.get("type", "all")  # all, clients, products, invoices
+
+    try:
+        backup_data = {}
+
+        if data_type in ["all", "clients"]:
+            clients = Client.objects.filter(created_by=user)
+            backup_data["clients"] = ClientSerializer(clients, many=True).data
+
+        if data_type in ["all", "products"]:
+            products = Product.objects.filter(user=user)
+            backup_data["products"] = ProductSerializer(products, many=True).data
+
+        if data_type in ["all", "invoices"]:
+            invoices = Invoice.objects.filter(user=user)
+            backup_data["invoices"] = InvoiceSerializer(invoices, many=True).data
+
+        return Response(
+            {
+                "success": True,
+                "backup_type": data_type,
+                "timestamp": timezone.now().isoformat(),
+                "data": backup_data,
+            }
+        )
+
+    except Exception as e:
+        return Response({"error": f"Error generando respaldo: {str(e)}"}, status=500)

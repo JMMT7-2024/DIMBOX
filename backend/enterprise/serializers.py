@@ -1,4 +1,4 @@
-# enterprise/serializers.py - MÓDULO EMPRESARIAL COMPLETO CORREGIDO
+# enterprise/serializers.py - MÓDULO EMPRESARIAL COMPLETO Y CORREGIDO
 from rest_framework import serializers
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
@@ -7,7 +7,9 @@ from .models import Client, Product, Invoice, InvoiceItem
 
 
 class ClientSerializer(serializers.ModelSerializer):
-    """Serializer SIMPLIFICADO - solo campos esenciales"""
+    """Serializer COMPLETO para clientes - CON TODOS LOS CAMPOS"""
+
+    created_by = serializers.HiddenField(default=serializers.CurrentUserDefault())
 
     class Meta:
         model = Client
@@ -18,13 +20,17 @@ class ClientSerializer(serializers.ModelSerializer):
             "document_number",
             "phone",
             "email",
+            "address",
+            "city",
+            "country",
+            "created_by",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_at", "updated_at", "created_by"]
 
     def create(self, validated_data):
-        """CORRECCIÓN CRÍTICA: Asignar usuario automáticamente - MISMO PATRÓN QUE PRODUCTOS"""
+        """CORRECCIÓN CRÍTICA: Asignar usuario automáticamente"""
         request = self.context.get("request")
         if request and hasattr(request, "user"):
             validated_data["created_by"] = request.user
@@ -53,6 +59,7 @@ class ProductSerializer(serializers.ModelSerializer):
     profit_margin = serializers.ReadOnlyField()
     tax_amount = serializers.ReadOnlyField()
     price_with_tax = serializers.ReadOnlyField()
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
 
     class Meta:
         model = Product
@@ -71,9 +78,9 @@ class ProductSerializer(serializers.ModelSerializer):
             "profit_margin",
             "tax_amount",
             "price_with_tax",
+            "user",
             "created_at",
             "updated_at",
-            "user",  # Agregado para debugging
         ]
         read_only_fields = [
             "id",
@@ -82,7 +89,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "profit_margin",
             "tax_amount",
             "price_with_tax",
-            "user",  # Hacerlo read-only para evitar asignación manual
+            "user",
         ]
 
     def validate_price(self, value):
@@ -172,6 +179,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
     items = InvoiceItemSerializer(many=True, required=False)
     is_overdue = serializers.ReadOnlyField()
     client_info = serializers.SerializerMethodField()
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
 
     class Meta:
         model = Invoice
@@ -195,7 +203,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
             "items",
             "created_at",
             "updated_at",
-            "user",  # Agregado para debugging
+            "user",
         ]
         read_only_fields = [
             "id",
@@ -206,7 +214,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "is_overdue",
-            "user",  # Hacerlo read-only
+            "user",
         ]
 
     def get_client_info(self, obj):
@@ -310,6 +318,7 @@ class InvoiceCreateSerializer(serializers.Serializer):
     )
     issue_date = serializers.DateField(required=False)
     due_date = serializers.DateField(required=False)
+    notes = serializers.CharField(required=False, allow_blank=True)
 
     # Items como lista de productos con cantidades
     items = serializers.ListField(child=serializers.DictField(), min_length=1)
@@ -340,6 +349,7 @@ class InvoiceCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError("Usuario no autenticado")
 
         items_data = validated_data.pop("items")
+        notes = validated_data.pop("notes", "")
 
         # Configurar fechas por defecto
         if not validated_data.get("issue_date"):
@@ -365,6 +375,7 @@ class InvoiceCreateSerializer(serializers.Serializer):
             "payment_method": validated_data.get("payment_method", "CASH"),
             "issue_date": validated_data["issue_date"],
             "due_date": validated_data["due_date"],
+            "notes": notes,
             "subtotal": 0,
             "tax_amount": 0,
             "total": 0,
@@ -383,16 +394,25 @@ class InvoiceCreateSerializer(serializers.Serializer):
                     id=item["product_id"], user=request.user, is_active=True
                 )
 
+                # Calcular precios
+                unit_price = item.get("unit_price", product.price)
+                quantity = item["quantity"]
+                tax_rate = item.get("tax_rate", product.tax_rate)
+
+                item_subtotal = unit_price * quantity
+                item_tax_amount = item_subtotal * (tax_rate / 100)
+                item_total = item_subtotal + item_tax_amount
+
                 invoice_item = InvoiceItem.objects.create(
                     invoice=invoice,
                     product=product,
-                    quantity=item["quantity"],
-                    unit_price=product.price,
-                    tax_rate=product.tax_rate,
+                    quantity=quantity,
+                    unit_price=unit_price,
+                    tax_rate=tax_rate,
                 )
 
-                subtotal += float(invoice_item.subtotal)
-                tax_amount += float(invoice_item.tax_amount)
+                subtotal += float(item_subtotal)
+                tax_amount += float(item_tax_amount)
 
             except Product.DoesNotExist:
                 raise serializers.ValidationError(
