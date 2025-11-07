@@ -1,4 +1,3 @@
-# social_auth/models.py - MODELO COMPLETO Y FUNCIONAL
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
