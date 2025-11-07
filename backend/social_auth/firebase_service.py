@@ -1,4 +1,4 @@
-# social_auth/firebase_service.py - VERSIÓN COMPLETA Y CORREGIDA
+# social_auth/firebase_service.py - VERSIÓN COMPATIBLE CON TU MODELO
 import firebase_admin
 from firebase_admin import auth, credentials
 from django.conf import settings
@@ -15,7 +15,7 @@ User = get_user_model()
 
 class FirebaseAuthService:
     """
-    Servicio para autenticación con Firebase - VERSIÓN COMPLETA CORREGIDA
+    Servicio para autenticación con Firebase - COMPATIBLE CON TU MODELO USER
     """
 
     _initialized = False
@@ -128,25 +128,35 @@ class FirebaseAuthService:
     @classmethod
     def get_or_create_user(cls, firebase_user_data):
         """
-        Crea o obtiene usuario basado en datos de Firebase - VERSIÓN MÍNIMA Y SEGURA
+        Crea o obtiene usuario - COMPATIBLE CON TU MODELO USER
         """
         try:
             email = firebase_user_data["email"]
             firebase_uid = firebase_user_data["firebase_uid"]
+            firebase_name = firebase_user_data.get("name", "")
 
             logger.info(f"🔍 Buscando usuario por email: {email}")
 
-            # ✅ SOLAMENTE buscar por email (evitar firebase_uid que no existe)
+            # ✅ Buscar usuario existente por email
             user = User.objects.filter(email=email).first()
 
             if user:
                 logger.info(f"✅ Usuario existente encontrado: {email}")
+
+                # ✅ Actualizar name si está vacío y tenemos datos de Firebase
+                if not user.name and firebase_name:
+                    user.name = firebase_name
+                    user.save()
+                    logger.info(
+                        f"✅ Nombre actualizado desde Firebase: {firebase_name}"
+                    )
+
                 return user, False
 
-            # ✅ CREAR NUEVO USUARIO - VERSIÓN MÍNIMA
+            # ✅ CREAR NUEVO USUARIO - COMPATIBLE CON TU MODELO
             logger.info(f"👤 Creando nuevo usuario para: {email}")
 
-            # Generar username único
+            # Generar username único (igual que tu registro normal)
             base_username = email.split("@")[0]
             username = base_username
             counter = 1
@@ -154,54 +164,45 @@ class FirebaseAuthService:
                 username = f"{base_username}{counter}"
                 counter += 1
 
-            # ✅ PREPARAR DATOS MÍNIMOS - SOLO CAMPOS QUE SEGURO EXISTEN
+            # ✅ DATOS COMPATIBLES CON TU MODELO USER
+            # Tu modelo NO tiene first_name/last_name, pero SÍ tiene name
             user_data = {
                 "username": username,
                 "email": email,
+                "name": firebase_name,  # ✅ Usar el campo 'name' de tu modelo
                 "is_active": True,
+                # Tu UserSerializer espera password, pero para usuarios sociales podemos usar una por defecto
+                "password": "firebase_social_user_temp_password_123",
             }
 
-            # ✅ VERIFICAR CAMPOS OPCIONALES DE MANERA SEGURA
-            optional_fields = [
-                ("first_name", firebase_user_data.get("name", "").split(" ")[0] or ""),
-                (
-                    "last_name",
-                    " ".join(firebase_user_data.get("name", "").split(" ")[1:]) or "",
-                ),
-                ("name", firebase_user_data.get("name", "")),
-                ("firebase_uid", firebase_uid),
-            ]
+            logger.info(f"📝 Datos para crear usuario: {user_data}")
 
-            for field_name, field_value in optional_fields:
+            # ✅ CREAR USUARIO USANDO create_user (igual que tu registro normal)
+            try:
+                user = User.objects.create_user(**user_data)
+                logger.info(f"✅ Usuario creado exitosamente con create_user: {email}")
+
+            except Exception as e:
+                logger.error(f"❌ Error con create_user: {e}")
+
+                # ✅ FALLBACK: Intentar con create si create_user falla
                 try:
-                    # Verificar si el campo existe en el modelo
-                    if hasattr(User(), field_name):
-                        user_data[field_name] = field_value
-                        logger.info(f"✅ Campo '{field_name}' agregado")
-                    else:
-                        logger.info(f"ℹ️  Campo '{field_name}' no disponible, omitiendo")
-                except Exception as e:
-                    logger.warning(f"⚠️ Error verificando campo '{field_name}': {e}")
+                    # Remover password para el fallback
+                    user_data_fallback = user_data.copy()
+                    user_data_fallback.pop("password", None)
 
-            # ✅ CREAR USUARIO CON MÚLTIPLES INTENTOS
-            user = None
-            creation_methods = [
-                ("create_user", lambda: User.objects.create_user(**user_data)),
-                ("create", lambda: User.objects.create(**user_data)),
-            ]
+                    user = User.objects.create(**user_data_fallback)
 
-            for method_name, method in creation_methods:
-                try:
-                    logger.info(f"🔄 Intentando crear usuario con {method_name}...")
-                    user = method()
-                    logger.info(f"✅ Usuario creado exitosamente con {method_name}")
-                    break
-                except Exception as e:
-                    logger.warning(f"⚠️ {method_name} falló: {e}")
-                    continue
+                    # Establecer password por separado si es necesario
+                    if hasattr(user, "set_password"):
+                        user.set_password("firebase_social_user_temp_password_123")
+                        user.save()
 
-            if not user:
-                raise Exception("Todos los métodos de creación fallaron")
+                    logger.info(f"✅ Usuario creado con create (fallback): {email}")
+
+                except Exception as e2:
+                    logger.error(f"❌ Error crítico con create también: {e2}")
+                    return None, f"Error creando usuario: {str(e2)}"
 
             logger.info(
                 f"✅ Nuevo usuario creado exitosamente: {email} (Username: {username})"
