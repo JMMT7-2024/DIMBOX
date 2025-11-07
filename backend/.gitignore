@@ -1,0 +1,5 @@
+prueba-diovic-firebase-adminsdk-87skk-facd0a4699.json
+*.json
+*.py
+backend/*.py
+backend/social_auth/*.py
