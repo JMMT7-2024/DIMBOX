@@ -6,7 +6,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 
 from .serializers import GoogleAuthSerializer, FirebaseAuthSerializer, UserSerializer
-from .google_service import GoogleAuthService
+
+# from .google_service import GoogleAuthService
 from .firebase_service import FirebaseAuthService  # ✅ NUEVO
 
 
