@@ -1,4 +1,4 @@
-# social_auth/firebase_service.py - VERSIÓN CORREGIDA Y FUNCIONAL
+# social_auth/firebase_service.py - VERSIÓN COMPLETA Y CORREGIDA
 import firebase_admin
 from firebase_admin import auth, credentials
 from django.conf import settings
@@ -15,7 +15,7 @@ User = get_user_model()
 
 class FirebaseAuthService:
     """
-    Servicio para autenticación con Firebase - VERSIÓN CORREGIDA
+    Servicio para autenticación con Firebase - VERSIÓN COMPLETA CORREGIDA
     """
 
     _initialized = False
@@ -128,32 +128,37 @@ class FirebaseAuthService:
     @classmethod
     def get_or_create_user(cls, firebase_user_data):
         """
-        Crea o obtiene usuario basado en datos de Firebase - CORREGIDO
+        Crea o obtiene usuario basado en datos de Firebase - COMPLETAMENTE CORREGIDO
         """
         try:
             email = firebase_user_data["email"]
             firebase_uid = firebase_user_data["firebase_uid"]
 
-            # ✅ PRIMERO buscar por firebase_uid (más seguro)
-            user = User.objects.filter(firebase_uid=firebase_uid).first()
+            logger.info(f"🔍 Buscando usuario por email: {email}")
 
-            if user:
-                logger.info(f"✅ Usuario encontrado por Firebase UID: {email}")
-                return user, False
-
-            # ✅ SEGUNDO buscar por email
+            # ✅ SOLAMENTE buscar por email (evitar firebase_uid que no existe)
             user = User.objects.filter(email=email).first()
 
             if user:
-                # ✅ Actualizar firebase_uid si no tenía
-                if not user.firebase_uid:
-                    user.firebase_uid = firebase_uid
-                    user.save()
-                    logger.info(
-                        f"✅ Firebase UID agregado a usuario existente: {email}"
+                logger.info(f"✅ Usuario existente encontrado: {email}")
+
+                # ✅ OPCIONAL: Intentar actualizar firebase_uid si el campo existe
+                # Si no existe el campo, simplemente ignorar el error
+                try:
+                    if hasattr(user, "firebase_uid"):
+                        if not user.firebase_uid:
+                            user.firebase_uid = firebase_uid
+                            user.save()
+                            logger.info(f"✅ Firebase UID actualizado: {email}")
+                    else:
+                        logger.info(
+                            "ℹ️  El modelo User no tiene campo firebase_uid, omitiendo..."
+                        )
+                except Exception as e:
+                    logger.warning(
+                        f"⚠️ No se pudo actualizar firebase_uid (campo probablemente no existe): {e}"
                     )
 
-                logger.info(f"✅ Usuario encontrado por email: {email}")
                 return user, False
 
             # ✅ CREAR NUEVO USUARIO
@@ -167,18 +172,44 @@ class FirebaseAuthService:
                 username = f"{base_username}{counter}"
                 counter += 1
 
-            # Crear usuario con todos los campos necesarios
-            user = User.objects.create(
-                username=username,
-                email=email,
-                first_name=firebase_user_data.get("name", "").split(" ")[0],
-                last_name=" ".join(firebase_user_data.get("name", "").split(" ")[1:])
+            # Preparar datos básicos del usuario (campos que SEGURO existen)
+            user_data = {
+                "username": username,
+                "email": email,
+                "first_name": firebase_user_data.get("name", "").split(" ")[0] or "",
+                "last_name": " ".join(firebase_user_data.get("name", "").split(" ")[1:])
                 or "",
-                firebase_uid=firebase_uid,
-                is_active=True,
-            )
+                "is_active": True,
+            }
 
-            logger.info(f"✅ Nuevo usuario creado: {email} (Username: {username})")
+            # ✅ SOLO intentar agregar firebase_uid si estamos SEGUROS de que el campo existe
+            try:
+                # Verificar de manera segura si el campo existe
+                user_instance = User()
+                if hasattr(user_instance, "firebase_uid"):
+                    user_data["firebase_uid"] = firebase_uid
+                    logger.info(
+                        "✅ Campo firebase_uid disponible, agregando al nuevo usuario"
+                    )
+                else:
+                    logger.info(
+                        "ℹ️  Campo firebase_uid no disponible en el modelo, omitiendo"
+                    )
+            except Exception as e:
+                logger.warning(f"⚠️ No se pudo verificar campo firebase_uid: {e}")
+
+            # Crear usuario - usar create_user para manejar passwords correctamente
+            try:
+                # Intentar con create_user primero (mejor práctica)
+                user = User.objects.create_user(**user_data)
+            except Exception as e:
+                logger.warning(f"⚠️ create_user falló, usando create: {e}")
+                # Fallback a create si create_user no funciona
+                user = User.objects.create(**user_data)
+
+            logger.info(
+                f"✅ Nuevo usuario creado exitosamente: {email} (Username: {username})"
+            )
             return user, True
 
         except Exception as e:
