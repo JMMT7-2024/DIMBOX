@@ -128,7 +128,7 @@ class FirebaseAuthService:
     @classmethod
     def get_or_create_user(cls, firebase_user_data):
         """
-        Crea o obtiene usuario basado en datos de Firebase - COMPLETAMENTE CORREGIDO
+        Crea o obtiene usuario basado en datos de Firebase - VERSIÓN MÍNIMA Y SEGURA
         """
         try:
             email = firebase_user_data["email"]
@@ -141,27 +141,9 @@ class FirebaseAuthService:
 
             if user:
                 logger.info(f"✅ Usuario existente encontrado: {email}")
-
-                # ✅ OPCIONAL: Intentar actualizar firebase_uid si el campo existe
-                # Si no existe el campo, simplemente ignorar el error
-                try:
-                    if hasattr(user, "firebase_uid"):
-                        if not user.firebase_uid:
-                            user.firebase_uid = firebase_uid
-                            user.save()
-                            logger.info(f"✅ Firebase UID actualizado: {email}")
-                    else:
-                        logger.info(
-                            "ℹ️  El modelo User no tiene campo firebase_uid, omitiendo..."
-                        )
-                except Exception as e:
-                    logger.warning(
-                        f"⚠️ No se pudo actualizar firebase_uid (campo probablemente no existe): {e}"
-                    )
-
                 return user, False
 
-            # ✅ CREAR NUEVO USUARIO
+            # ✅ CREAR NUEVO USUARIO - VERSIÓN MÍNIMA
             logger.info(f"👤 Creando nuevo usuario para: {email}")
 
             # Generar username único
@@ -172,40 +154,54 @@ class FirebaseAuthService:
                 username = f"{base_username}{counter}"
                 counter += 1
 
-            # Preparar datos básicos del usuario (campos que SEGURO existen)
+            # ✅ PREPARAR DATOS MÍNIMOS - SOLO CAMPOS QUE SEGURO EXISTEN
             user_data = {
                 "username": username,
                 "email": email,
-                "first_name": firebase_user_data.get("name", "").split(" ")[0] or "",
-                "last_name": " ".join(firebase_user_data.get("name", "").split(" ")[1:])
-                or "",
                 "is_active": True,
             }
 
-            # ✅ SOLO intentar agregar firebase_uid si estamos SEGUROS de que el campo existe
-            try:
-                # Verificar de manera segura si el campo existe
-                user_instance = User()
-                if hasattr(user_instance, "firebase_uid"):
-                    user_data["firebase_uid"] = firebase_uid
-                    logger.info(
-                        "✅ Campo firebase_uid disponible, agregando al nuevo usuario"
-                    )
-                else:
-                    logger.info(
-                        "ℹ️  Campo firebase_uid no disponible en el modelo, omitiendo"
-                    )
-            except Exception as e:
-                logger.warning(f"⚠️ No se pudo verificar campo firebase_uid: {e}")
+            # ✅ VERIFICAR CAMPOS OPCIONALES DE MANERA SEGURA
+            optional_fields = [
+                ("first_name", firebase_user_data.get("name", "").split(" ")[0] or ""),
+                (
+                    "last_name",
+                    " ".join(firebase_user_data.get("name", "").split(" ")[1:]) or "",
+                ),
+                ("name", firebase_user_data.get("name", "")),
+                ("firebase_uid", firebase_uid),
+            ]
 
-            # Crear usuario - usar create_user para manejar passwords correctamente
-            try:
-                # Intentar con create_user primero (mejor práctica)
-                user = User.objects.create_user(**user_data)
-            except Exception as e:
-                logger.warning(f"⚠️ create_user falló, usando create: {e}")
-                # Fallback a create si create_user no funciona
-                user = User.objects.create(**user_data)
+            for field_name, field_value in optional_fields:
+                try:
+                    # Verificar si el campo existe en el modelo
+                    if hasattr(User(), field_name):
+                        user_data[field_name] = field_value
+                        logger.info(f"✅ Campo '{field_name}' agregado")
+                    else:
+                        logger.info(f"ℹ️  Campo '{field_name}' no disponible, omitiendo")
+                except Exception as e:
+                    logger.warning(f"⚠️ Error verificando campo '{field_name}': {e}")
+
+            # ✅ CREAR USUARIO CON MÚLTIPLES INTENTOS
+            user = None
+            creation_methods = [
+                ("create_user", lambda: User.objects.create_user(**user_data)),
+                ("create", lambda: User.objects.create(**user_data)),
+            ]
+
+            for method_name, method in creation_methods:
+                try:
+                    logger.info(f"🔄 Intentando crear usuario con {method_name}...")
+                    user = method()
+                    logger.info(f"✅ Usuario creado exitosamente con {method_name}")
+                    break
+                except Exception as e:
+                    logger.warning(f"⚠️ {method_name} falló: {e}")
+                    continue
+
+            if not user:
+                raise Exception("Todos los métodos de creación fallaron")
 
             logger.info(
                 f"✅ Nuevo usuario creado exitosamente: {email} (Username: {username})"
