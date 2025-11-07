@@ -1,4 +1,4 @@
-# backend/backend/settings.py - ACTUALIZADO CON ENTERPRISE
+# backend/backend/settings.py - ACTUALIZADO CON SOCIAL AUTH
 import os
 from pathlib import Path
 import dj_database_url  # Make sure this is imported
@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "core",
     "quick_accounts",
     "enterprise",  # ✅ NUEVA APP: Módulo empresarial
+    "social_auth",  # ✅ NUEVA APP: Autenticación Social
 ]
 
 # --------- Middleware (Ordered and Corrected!) ----------
@@ -304,6 +305,11 @@ LOGGING = {
             "level": "DEBUG" if DEBUG else "INFO",
             "propagate": False,
         },
+        "social_auth": {  # ✅ NUEVO: Logger para autenticación social
+            "handlers": ["console"],
+            "level": "DEBUG" if DEBUG else "INFO",
+            "propagate": False,
+        },
     },
 }
 
@@ -362,6 +368,12 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5MB
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000
 
+# ✅ NUEVO: Configuración para Google OAuth (variables de entorno)
+GOOGLE_OAUTH_CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "")
+GOOGLE_OAUTH_CLIENT_SECRET = os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET", "")
+
+FIREBASE_CREDENTIALS_JSON = os.environ.get("FIREBASE_CREDENTIALS_JSON", "")
+
 print(f"✅ DIMBOX Settings Loaded - DEBUG: {DEBUG}")
 print(f"✅ Allowed Hosts: {ALLOWED_HOSTS}")
 print(f"✅ Database: {DATABASES['default']['ENGINE']}")
@@ -369,4 +381,5 @@ print(f"✅ CORS Allowed Origins: {CORS_ALLOWED_ORIGINS}")
 print(
     f"✅ Apps Installed: {[app for app in INSTALLED_APPS if not app.startswith('django')]}"
 )
-print(f"✅ Enterprise Module: ACTIVE")  # ✅ NUEVO: Confirmación del módulo
+print("✅ Enterprise Module: ACTIVE")
+print("✅ Social Auth Module: ACTIVE")  # ✅ NUEVO: Confirmación del módulo

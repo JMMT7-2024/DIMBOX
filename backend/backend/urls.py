@@ -1,4 +1,4 @@
-# backend/backend/urls.py - ARCHIVO PRINCIPAL ACTUALIZADO
+# backend/backend/urls.py - ARCHIVO PRINCIPAL ACTUALIZADO CON SOCIAL AUTH
 from django.contrib import admin
 from django.urls import path, include
 from django.http import HttpResponse
@@ -16,6 +16,7 @@ def home(request):
                 .endpoint { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 5px; }
                 code { background: #eee; padding: 2px 5px; border-radius: 3px; }
                 .new { background: #e8f5e8; border-left: 4px solid #4CAF50; }
+                .social { background: #e3f2fd; border-left: 4px solid #2196F3; }
             </style>
         </head>
         <body>
@@ -31,6 +32,11 @@ def home(request):
                 <div class="endpoint new">
                     <strong>🏢 Módulo Empresarial:</strong> <a href="/api/enterprise/">/api/enterprise/</a>
                     <br><small>✅ NUEVO: Gestión de clientes, productos y facturación</small>
+                </div>
+                
+                <div class="endpoint social">
+                    <strong>🔐 Autenticación Social:</strong> <a href="/api/auth/social/health/">/api/auth/social/</a>
+                    <br><small>✅ NUEVO: Login con Google y otros proveedores</small>
                 </div>
                 
                 <div class="endpoint">
@@ -61,8 +67,16 @@ def home(request):
                     <li><em>Más endpoints en desarrollo...</em></li>
                 </ul>
                 
+                <h3>🔐 Endpoints Social Auth (NUEVOS):</h3>
+                <ul>
+                    <li><code>POST /api/auth/social/google/login/</code> - Login con Google</li>
+                    <li><code>GET /api/auth/social/health/</code> - Estado del servicio</li>
+                    <li><em>Próximamente: Facebook, GitHub, etc.</em></li>
+                </ul>
+                
                 <p><em>✅ El despliegue se ha completado exitosamente</em></p>
                 <p><em>🚀 Módulo empresarial activo y funcionando</em></p>
+                <p><em>🔐 Autenticación social lista para usar</em></p>
             </div>
         </body>
     </html>
@@ -76,6 +90,8 @@ urlpatterns = [
     path("api/", include("core.urls")),
     # ✅ NUEVO: Módulo empresarial
     path("api/enterprise/", include("enterprise.urls")),
+    # ✅ NUEVO: Autenticación Social
+    path("api/auth/social/", include("social_auth.urls")),
     # Página de inicio
     path("", home, name="home"),
     # Redirección para favicon.ico u otros archivos comunes
